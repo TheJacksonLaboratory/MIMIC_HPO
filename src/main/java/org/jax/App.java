@@ -1,12 +1,13 @@
 package org.jax;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Hello world!
@@ -24,7 +25,10 @@ public class App {
                 if (line.endsWith(",")){
                     line = line + " ";
                 }
-                String[] elements = line.split("[\\,]");
+
+                //split by comma unless it is inside quotes
+                //ref: https://stackabuse.com/regex-splitting-by-character-unless-in-quotes/
+                String[] elements = line.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
                 if (elements.length != 9) {
                     System.out.println("line: " + line);
                     System.out.println("number of fields: " + elements.length);
@@ -36,7 +40,7 @@ public class App {
                 itemCounts.putIfAbsent(itemId, 0);
                 itemCounts.put(itemId, itemCounts.get(itemId) + 1);
                 count++;
-                if (count % 10000 == 0) {
+                if (count % 1000000 == 0) {
                     System.out.println("total processed lines: " + count);
                 }
             }
@@ -54,8 +58,22 @@ public class App {
         try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
             String line = reader.readLine();
             while ((line = reader.readLine()) != null) {
-                String[] elements = line.split("[,]");
-                
+                if (line.endsWith(",")) {
+                    line = line + " ";
+                }
+                String[] elements = line.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+                if (elements.length != 6){
+                    System.out.println("line does not have 6 fields: " + line);
+                }
+
+                String itemId = elements[1];
+                String loinc = elements[5].replace("\"", "");
+//                if (loinc.trim().isEmpty()) {
+//                    System.out.println(line);
+//                }
+                if (!loinc.trim().isEmpty()){
+                    itemToLoincMap.putIfAbsent(itemId, loinc);
+                }
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -63,15 +81,59 @@ public class App {
             e.printStackTrace();
         }
 
+        return itemToLoincMap;
+
     }
 
     public static void main( String[] args ) {
 
         String lab_path = "/Users/zhangx/git/MIMIC_HPO/src/main/resources/LABEVENTS.csv";
+        String lab_items_path = "/Users/zhangx/git/MIMIC_HPO/src/main/resources/D_LABITEMS.csv";
         Map<String, Integer> itemCounts = labItemCounts(lab_path);
-        itemCounts.entrySet().stream().sorted((e1, e2) -> e2.getValue() - e1.getValue()).limit(10).forEachOrdered(e -> {
-            System.out.println(e.getKey() + ": " + e.getValue());
-        });
+        Map<String, String> itemLoincMap = itemToLoinc(lab_items_path);
+
+        int TOTAL_LABS = itemCounts.values().stream().reduce((e1, e2) -> e1 + e2).get();
+
+        boolean loincOnly = true;
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("lab_count_loinc_only.csv", false), StandardCharsets.UTF_8))) {
+            itemCounts.entrySet().stream().sorted((e1, e2) -> e2.getValue() - e1.getValue())
+                    .forEachOrdered(e -> {
+                        String loinc = itemLoincMap.get(e.getKey());
+                        int count = e.getValue().intValue();
+                        try {
+                            if (loincOnly && (loinc != null)) {
+                                //writer.write(String.format("%s,%d", loinc, e.getValue()));
+                                writer.write(loinc);
+                                writer.write(",");
+                                writer.write(String.valueOf(count));
+                                writer.write(",");
+                                writer.write(Double.toString(100.0 * e.getValue() / TOTAL_LABS));
+                                writer.write("\n");
+                            }
+                            if (!loincOnly) {
+                                writer.write(loinc == null ? "unknown" : loinc);
+                                writer.write(",");
+                                writer.write(e.getValue());
+                                writer.write(",");
+                                writer.write(Double.toString(100.0 * e.getValue() / TOTAL_LABS));
+                            }
+//                            writer.write(loinc + "," + count);
+//                            writer.write("\n");
+
+
+                        } catch (IOException exception){
+                            exception.printStackTrace();
+                        }
+
+                    });
+
+        } catch (FileNotFoundException e){
+            e.printStackTrace();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+
+
 
 
 
