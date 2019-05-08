@@ -1,0 +1,19 @@
+Some laboratory tests were reported in more than one units. How to deal with this:
+
+EDA shows for all such tests except than the following three are dominated by one unit (ratio of count of first ranked unit and count of second ranked unit is more than 10). We will just keep the dominant unit and get rid of records with other units. 
+
+The following five lab tests does not have a dominant unit and need manual conversion:
+
+id: 50801; mm hg--count: 16073 ; mean: 478.09998133515813 empty--count: 5941 ; mean: 457.64652415418277 
+id: 50816; %--count: 71604 ; mean: 54.26038629126881 empty--count: 56212 ; mean: 53.85082366754419 
+id: 50833; meq/l--count: 1 ; mean: 4.4 empty--count: 1 ; mean: 97.0 
+id: 50832; mm hg--count: 9 ; mean: 150.77777777777777 empty--count: 4 ; mean: 100.25 
+id: 51514; eu/dl--count: 12120 ; mean: 1.200445544554622 mg/dl--count: 12996 ; mean: 2.643890427824013 
+
+But We do not need to worry about the third and fourth one because there are so few records. So the plan is:
+for id:50801, it appears "mm hg" equals empty unit;
+for id:50816, it appears "%" equals empty unit;
+for id:51514, convert eu/dl to mg/dl.
+
+What is eu/dl?
+One Ehrlich unit is equal to one milligram of urobilinogen per deciliter of sample (1 mg/dL). https://en.wikipedia.org/wiki/Urobilinogen
