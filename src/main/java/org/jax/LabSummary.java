@@ -3,13 +3,16 @@ package org.jax;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Summaries of quantitative lab events
+ */
 public class LabSummary {
 
-    String id; //lab test id, could be a LOINC code
-    Map<String, Double> meanByUnit;
-    Map<String, Integer> countByUnit;
+    private int id; //local lab test id
+    private Map<String, Double> meanByUnit;
+    private Map<String, Integer> countByUnit;
 
-    public LabSummary(String id){
+    public LabSummary(int id){
         this.id = id;
         this.meanByUnit = new HashMap<>();
         this.countByUnit = new HashMap<>();
@@ -25,7 +28,7 @@ public class LabSummary {
         this.countByUnit.put(unit, n + 1);
     }
 
-    public String getId() {
+    public int getId() {
         return id;
     }
 
@@ -40,7 +43,7 @@ public class LabSummary {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        builder.append("id: " + id);
+        builder.append("local_lab_id: " + id);
         builder.append("; ");
         for (String unit : this.countByUnit.keySet()) {
             builder.append(unit);

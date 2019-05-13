@@ -3,49 +3,91 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.1.4.RELEASE</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
   <groupId>org.jax</groupId>
   <artifactId>mimic-hpo</artifactId>
   <version>1.0-SNAPSHOT</version>
 
   <name>mimic-hpo</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <description>code repository for the analysis of MIMIC III dataset from MIT</description>
+  <url>https://github.com/TheJacksonLaboratory/MIMIC_HPO</url>
+
+  <developers>
+    <developer>
+      <name>Aaron Zhang</name>
+      <email>aaron.zhang@jax.org</email>
+    </developer>
+  </developers>
 
   <properties>
+    <java.version>1.8</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
+    <phenol.version>1.3.3</phenol.version>
+    <guava.version>27.1-jre</guava.version>
+    <junit.version>5.4.2</junit.version>
   </properties>
 
+
   <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.11</version>
-      <scope>test</scope>
-    </dependency>
     <!-- https://mvnrepository.com/artifact/com.beust/jcommander -->
     <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
       <version>1.72</version>
     </dependency>
-    <!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-core -->
     <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-core</artifactId>
-      <version>5.4.2.Final</version>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
-    <!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-annotations -->
     <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-annotations</artifactId>
-      <version>3.5.6-Final</version>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.monarchinitiative.phenol</groupId>
+      <artifactId>phenol-io</artifactId>
+      <version>${phenol.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.monarchinitiative.phenol</groupId>
+      <artifactId>phenol-core</artifactId>
+      <version>${phenol.version}</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
 
-
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+    </dependency>
 
   </dependencies>
 
