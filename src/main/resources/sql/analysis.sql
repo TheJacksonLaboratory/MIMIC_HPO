@@ -9,4 +9,8 @@ select table2.itemid, table2.valueuom, table2.n from table1 left join table2 on 
 with
 table1 as (select itemid from labevents where valuenum IS NOT NULL group by itemid order by count(*) desc),
 table2 as (select itemid, valueuom, avg(valuenum) as mean, count(*) as n from labevents where valuenum IS NOT NULL group by itemid, valueuom)
-select table2.itemid, table2.valueuom, table2.n, table2.mean from table1 left join table2 on table1.itemid=table2.itemid;
+select table2.itemid, table2.valueuom, table2.n, table2.mean
+from table1 left join table2 on table1.itemid=table2.itemid;
+
+-- count non numeric values
+select value, count(value) as n from labevents where valuenum is null group by value having n > 100 order by n desc;
