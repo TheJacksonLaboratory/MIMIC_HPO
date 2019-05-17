@@ -18,6 +18,11 @@ public class LabSummary {
         this.countByUnit = new HashMap<>();
     }
 
+    /**
+     * Modify current lab summary by adding one lab result
+     * @param unit
+     * @param value
+     */
     public void add(String unit, Double value){
         this.countByUnit.putIfAbsent(unit, 0);
         this.meanByUnit.putIfAbsent(unit, 0.0);
@@ -26,6 +31,17 @@ public class LabSummary {
         double updated_mean = (mean * n + value) / (n + 1);
         this.meanByUnit.put(unit, updated_mean);
         this.countByUnit.put(unit, n + 1);
+    }
+
+    /**
+     * Modify current lab summary by adding precomputed count and mean
+     * @param unit
+     * @param count
+     * @param mean
+     */
+    public void put(String unit, int count, double mean) {
+        this.countByUnit.put(unit, count);
+        this.meanByUnit.put(unit, mean);
     }
 
     public int getId() {
