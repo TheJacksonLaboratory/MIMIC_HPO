@@ -17,7 +17,7 @@ public class LabDictParserTest {
 
     @BeforeAll
     public static void setUp() throws Exception {
-        String path = LabDictParserTest.class.getClassLoader().getResource("D_LABITEMS_test.csv").getPath();
+        String path = LabDictParserTest.class.getClassLoader().getResource("D_LABITEMS_test.tsv").getPath();
         LabDictParser parser = new LabDictParser(path);
         labDictItemMap = parser.parse();
 

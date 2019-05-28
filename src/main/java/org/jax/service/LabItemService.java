@@ -1,9 +1,8 @@
 package org.jax.service;
 
 
-import org.jax.Entity.LabEvents;
+import org.jax.Entity.LabEvent;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -11,6 +10,6 @@ import java.util.Optional;
  */
 public interface LabItemService {
 
-    Optional<LabEvents> findById(int id);
+    Optional<LabEvent> findById(int id);
 
 }

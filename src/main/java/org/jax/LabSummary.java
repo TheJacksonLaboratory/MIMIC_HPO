@@ -1,7 +1,10 @@
 package org.jax;
 
+import javax.annotation.Nullable;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Summaries of quantitative lab events
@@ -11,11 +14,14 @@ public class LabSummary {
     private int id; //local lab test id
     private Map<String, Double> meanByUnit;
     private Map<String, Integer> countByUnit;
+    private Map<String, NormalRange> normalRangeByUnit;
+
 
     public LabSummary(int id){
         this.id = id;
         this.meanByUnit = new HashMap<>();
         this.countByUnit = new HashMap<>();
+        this.normalRangeByUnit = new HashMap<>();
     }
 
     /**
@@ -35,13 +41,19 @@ public class LabSummary {
 
     /**
      * Modify current lab summary by adding precomputed count and mean
-     * @param unit
-     * @param count
-     * @param mean
+     * @param unit unit of the lab test
+     * @param count the count of lab tests with the specified unit
+     * @param mean the mean value of all lab tests, normal and abnormal
+     * @param min_normal a null value means that a min value for normal finding could not be established
+     * @param max_normal a null value means that a max value for normal finding could not be established
      */
-    public void put(String unit, int count, double mean) {
+    public void put(String unit, int count, double mean, @Nullable Double min_normal, @Nullable
+            Double max_normal) {
         this.countByUnit.put(unit, count);
         this.meanByUnit.put(unit, mean);
+        if (min_normal != null && max_normal != null) {
+            this.normalRangeByUnit.put(unit, new NormalRange(min_normal, max_normal));
+        }
     }
 
     public int getId() {
@@ -49,11 +61,21 @@ public class LabSummary {
     }
 
     public Map<String, Double> getMeanByUnit() {
-        return new HashMap<>(meanByUnit);
+        return meanByUnit;
     }
 
     public Map<String, Integer> getCountByUnit() {
-        return new HashMap<>(this.countByUnit);
+        return this.countByUnit;
+    }
+
+    public Map<String, NormalRange> getNormalRangeByUnit() {
+        return this.normalRangeByUnit;
+    }
+
+    public Optional<String> getPrimaryUnit() {
+        return this.countByUnit.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue((a, b) -> b - a))
+                .map(e -> e.getKey()).findFirst();
     }
 
     @Override
@@ -72,5 +94,30 @@ public class LabSummary {
         return builder.toString();
     }
 
+    public static class NormalRange {
+        private double min;
+        private double max;
+
+        NormalRange(double min, double max) {
+            this.min = min;
+            this.max = max;
+        }
+
+        public double getMin() {
+            return min;
+        }
+
+        public void setMin(double min) {
+            this.min = min;
+        }
+
+        public double getMax() {
+            return max;
+        }
+
+        public void setMax(double max) {
+            this.max = max;
+        }
+    }
 
 }

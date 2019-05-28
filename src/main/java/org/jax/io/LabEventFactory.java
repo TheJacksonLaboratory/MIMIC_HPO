@@ -1,17 +1,16 @@
 package org.jax.io;
 
-import org.jax.Entity.LabEvents;
+import org.jax.Entity.LabEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.geom.FlatteningPathIterator;
 import java.sql.Timestamp;
 
 public class LabEventFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(LabEventFactory.class);
 
-    public static LabEvents parse(String record) throws MimicHpoException {
+    public static LabEvent parse(String record) throws MimicHpoException {
 
         if (record.endsWith(",")) {
             record = record + " ";
@@ -23,7 +22,7 @@ public class LabEventFactory {
             //throw new RuntimeException();
         }
 
-        LabEvents event = null;
+        LabEvent event = null;
 
         try {
             int row_id = Integer.parseInt(elements[0]);
@@ -36,17 +35,17 @@ public class LabEventFactory {
             }
             int item_id = Integer.parseInt(elements[3]);
             Timestamp charttime = Timestamp.valueOf(elements[4]);
-            String value = elements[5];
+            String value = elements[5].trim().replace("\"", "");
             float valuenum;
             if (elements[6].isEmpty()) {
                 valuenum = Float.MAX_VALUE;
             } else {
                 valuenum = Float.parseFloat(elements[6].trim());
             }
-            String valueuom = elements[7];
-            String flag = elements[8];
+            String valueuom = elements[7].trim().replace("\"", "");
+            String flag = elements[8].trim().replace("\"", "");
 
-            event = new LabEvents(row_id,
+            event = new LabEvent(row_id,
                     subject_id,
                     hadm_id,
                     item_id,

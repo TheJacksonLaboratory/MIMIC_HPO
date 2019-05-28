@@ -16,7 +16,7 @@ class QnLabSummarizeFileImplTest {
     @BeforeAll
     static void setUp() throws Exception {
 
-        String labEventPath = QnLabSummarizeFileImplTest.class.getClassLoader().getResource("LABEVENTS_test.csv").getPath();
+        String labEventPath = QnLabSummarizeFileImplTest.class.getClassLoader().getResource("LABEVENTS_test.tsv").getPath();
         QnLabSummarize qnLabSummarize = new QnLabSummarizeFileImpl(labEventPath);
         summaryMap = qnLabSummarize.summarize();
 

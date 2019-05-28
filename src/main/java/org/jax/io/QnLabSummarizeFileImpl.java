@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+@Deprecated
 public class QnLabSummarizeFileImpl implements QnLabSummarize {
 
     private static final Logger logger = LoggerFactory.getLogger(QnLabSummarizeFileImpl.class);

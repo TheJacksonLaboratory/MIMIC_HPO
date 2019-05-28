@@ -8,7 +8,7 @@ import javax.persistence.*;
  */
 @Entity
 @Table(name = "LABEVENTS")
-public class LabEvents {
+public class LabEvent {
 
     @Id
     @Column(name = "ROW_ID")
@@ -30,7 +30,7 @@ public class LabEvents {
     @Column(name = "FLAG")
     private String flag;
 
-    public LabEvents(int row_id, int subject_id, int hadm_id, int item_id, Timestamp chart_time, String value, double value_num, String value_uom, String flag) {
+    public LabEvent(int row_id, int subject_id, int hadm_id, int item_id, Timestamp chart_time, String value, double value_num, String value_uom, String flag) {
         this.row_id = row_id;
         this.subject_id = subject_id;
         this.hadm_id = hadm_id;

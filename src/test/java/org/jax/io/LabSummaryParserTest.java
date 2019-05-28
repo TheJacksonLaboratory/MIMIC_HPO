@@ -16,7 +16,7 @@ class LabSummaryParserTest {
 
     @BeforeAll
     private static void setup() throws Exception{
-        String path = LabSummaryParserTest.class.getClassLoader().getResource("lab_summary_test.csv").getPath();
+        String path = LabSummaryParserTest.class.getClassLoader().getResource("lab_summary_test.tsv").getPath();
         LabSummaryParser labSummaryParser = new LabSummaryParser(path);
         labSummaryMap = labSummaryParser.parse();
     }
@@ -43,8 +43,13 @@ class LabSummaryParserTest {
             "51279, NULL, 3.390000025431315",
             "51019, g/dL, 2.700000047683716"
     })
-    private void mean(int id, String unit, double mean){
+    void mean(int id, String unit, double mean){
         assertEquals(labSummaryMap.get(id).getMeanByUnit().get(unit), mean, 0.0001);
+    }
+
+    @Test
+    void range() {
+        assertNull(labSummaryMap.get(51221).getNormalRangeByUnit().get("NULL"));
     }
 
 }

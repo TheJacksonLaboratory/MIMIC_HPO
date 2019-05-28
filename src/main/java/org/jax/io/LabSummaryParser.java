@@ -25,11 +25,13 @@ public class LabSummaryParser {
         while ((line = reader.readLine()) != null){
             String[] elements = line.split("\t");
             int itemId = Integer.valueOf(elements[0]);
-            String unit = elements[1];
+            String unit = elements[1].trim().replace("\"", "");
             int count = Integer.valueOf(elements[2]);
             double mean = Double.valueOf(elements[3]);
+            Double min_normal = elements[4].equals("NULL") ? null : Double.valueOf(elements[4]);
+            Double max_normal = elements[6].equals("NULL") ? null : Double.valueOf(elements[6]);
             labSummaryMap.putIfAbsent(itemId, new LabSummary(itemId));
-            labSummaryMap.get(itemId).put(unit, count, mean);
+            labSummaryMap.get(itemId).put(unit, count, mean, min_normal, max_normal);
         }
 
         return labSummaryMap;
