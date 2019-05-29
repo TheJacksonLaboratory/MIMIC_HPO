@@ -1,4 +1,4 @@
-package org.jax;
+package org.jax.lab2hpo;
 
 import javax.annotation.Nullable;
 import java.util.Comparator;
@@ -72,10 +72,10 @@ public class LabSummary {
         return this.normalRangeByUnit;
     }
 
-    public Optional<String> getPrimaryUnit() {
+    public String getPrimaryUnit() {
         return this.countByUnit.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue((a, b) -> b - a))
-                .map(e -> e.getKey()).findFirst();
+                .map(e -> e.getKey()).findFirst().get();
     }
 
     @Override

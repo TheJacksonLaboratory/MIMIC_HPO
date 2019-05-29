@@ -1,6 +1,6 @@
 package org.jax.io;
 
-import org.jax.LabSummary;
+import org.jax.lab2hpo.LabSummary;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -25,7 +25,7 @@ public class LabSummaryParser {
         while ((line = reader.readLine()) != null){
             String[] elements = line.split("\t");
             int itemId = Integer.valueOf(elements[0]);
-            String unit = elements[1].trim().replace("\"", "");
+            String unit = elements[1];
             int count = Integer.valueOf(elements[2]);
             double mean = Double.valueOf(elements[3]);
             Double min_normal = elements[4].equals("NULL") ? null : Double.valueOf(elements[4]);

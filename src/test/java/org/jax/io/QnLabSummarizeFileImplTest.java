@@ -1,6 +1,6 @@
 package org.jax.io;
 
-import org.jax.LabSummary;
+import org.jax.lab2hpo.LabSummary;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

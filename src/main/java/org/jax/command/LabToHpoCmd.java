@@ -4,9 +4,11 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import org.jax.Entity.LabDictItem;
 import org.jax.Entity.LabEvent;
-import org.jax.LabSummary;
+import org.jax.lab2hpo.LabSummary;
 import org.jax.io.*;
-import org.jax.service.LabEvents2HpoFactory;
+import org.jax.lab2hpo.LabEvents2HpoFactory;
+import org.jax.lab2hpo.UnableToInterpretateException;
+import org.jax.lab2hpo.UnrecognizedUnitException;
 import org.jax.service.LocalLabTestNotMappedToLoinc;
 import org.monarchinitiative.loinc2hpo.exception.LoincCodeNotAnnotatedException;
 import org.monarchinitiative.loinc2hpo.exception.MalformedLoincCodeException;
@@ -88,25 +90,25 @@ public class LabToHpoCmd implements MimicCommand {
         //get the primary unit for each lab test: unit with the maximum count
         //in most cases, there are two units, one is correct (dominant) and the other missing
         //we skip the missing one
-        Map<Integer, String> primaryUnits = labSummaryMap.values().stream().collect(Collectors.toMap(
-                labSummary -> labSummary.getId(),
-                labSummary -> labSummary.getCountByUnit().entrySet().stream()
-                        .sorted((x, y) -> y.getValue() - x.getValue()) //sort unit by counts, reverse
-                        .map(e -> e.getKey()).findFirst().orElse("SHOULD NEVER HAPPEN!")
-        ));
-        logger.info("primary units for each lab test successfully loaded");
-        logger.info("primary units - " + primaryUnits.size());
+//        Map<Integer, String> primaryUnits = labSummaryMap.values().stream().collect(Collectors.toMap(
+//                labSummary -> labSummary.getId(),
+//                labSummary -> labSummary.getCountByUnit().entrySet().stream()
+//                        .sorted((x, y) -> y.getValue() - x.getValue()) //sort unit by counts, reverse
+//                        .map(e -> e.getKey()).findFirst().orElse("SHOULD NEVER HAPPEN!")
+//        ));
+//        logger.info("primary units for each lab test successfully loaded");
+//        logger.info("primary units - " + primaryUnits.size());
 
 
-        //find the mean for the primary units
-        Map<Integer, Double> primaryMeans = labSummaryMap.values().stream().collect(Collectors.toMap(
-                labSummary -> labSummary.getId(),
-                labSummary -> labSummary.getMeanByUnit()
-                        .get(primaryUnits.get(labSummary.getId()))
-        ));
-
-        logger.info("mean value for each lab test successfully loaded");
-        logger.info("primary means - " + primaryMeans.size());
+//        //find the mean for the primary units
+//        Map<Integer, Double> primaryMeans = labSummaryMap.values().stream().collect(Collectors.toMap(
+//                labSummary -> labSummary.getId(),
+//                labSummary -> labSummary.getMeanByUnit()
+//                        .get(primaryUnits.get(labSummary.getId()))
+//        ));
+//
+//        logger.info("mean value for each lab test successfully loaded");
+//        logger.info("primary means - " + primaryMeans.size());
 
 
         Map<LoincId, LOINC2HpoAnnotationImpl> annotationMap = null;
@@ -132,10 +134,17 @@ public class LabToHpoCmd implements MimicCommand {
         }
 
         //start processing
+//        LabEvents2HpoFactory labConvertFactory = new LabEvents2HpoFactory(
+//                local2loinc,
+//                primaryUnits,
+//                primaryMeans,
+//                annotationMap,
+//                loincEntryMap
+//        );
+
         LabEvents2HpoFactory labConvertFactory = new LabEvents2HpoFactory(
                 local2loinc,
-                primaryUnits,
-                primaryMeans,
+                labSummaryMap,
                 annotationMap,
                 loincEntryMap
         );
@@ -165,7 +174,7 @@ public class LabToHpoCmd implements MimicCommand {
 
                     Optional<HpoTerm4TestOutcome> outcome = null;
                     try {
-                        outcome = labConvertFactory.convert(labEvent);
+                        outcome = labConvertFactory.convert2(labEvent);
                         String mappedHpo = "?";
                         if (outcome.isPresent()) {
                             mappedHpo = outcome.get().getId().getValue();
@@ -179,6 +188,10 @@ public class LabToHpoCmd implements MimicCommand {
                         writer.write("ERROR 3: loinc code not annotated");
                     } catch (UnrecognizedCodeException e) {
                         writer.write("ERROR 4: interpretation code not mapped to hpo");
+                    } catch (UnableToInterpretateException e) {
+                        writer.write("ERROR 5: unable to interpret");
+                    } catch (UnrecognizedUnitException e) {
+                        writer.write("ERROR 6: unrecognized unit");
                     }
 
                     writer.write("\n");

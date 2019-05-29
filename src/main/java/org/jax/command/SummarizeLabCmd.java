@@ -3,18 +3,16 @@ package org.jax.command;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import org.jax.Entity.LabDictItem;
-import org.jax.LabSummary;
+import org.jax.lab2hpo.LabSummary;
 import org.jax.io.IoUtils;
 import org.jax.io.LabDictParser;
 import org.jax.io.QnLabSummarize;
 import org.jax.service.LabDictService;
 import org.jax.service.LabDictServiceImpl;
-import org.jax.service.LabSummaryService;
 import org.jax.io.QnLabSummarizeFileImpl;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.Map;
 
 @Parameters(commandDescription = "Summarize lab tests")
