@@ -49,16 +49,11 @@ public class LabToHpoCmd implements MimicCommand {
     @Parameter(names = {"-o", "--output"}, description = "Output path")
     private String outPath;
 
+    @Parameter(names = {"-error", "--error"}, description = "Print out some error messages")
+    private boolean printError = false;
+
     @Override
     public void run() {
-        //How to?
-        //input: lab record + summary file (obtain through running SummarizeLabCmd command)
-        //for each lab record,
-        //  read the "unit" field, discard if it is an outlier, unless it is one the three special cases
-        //
-        //  read the "flag" and "value" fields, and create a more meaningful "flag":
-        //      if the "value" is not a number, keep the "flag" unchanged
-        //      if the "value" is a number and the "flag" is abnormal, compare "value" with mean: assign "H" if value > mean, "L" otherwise.
 
         LabSummaryParser labSummaryparser = new LabSummaryParser(labSummaryPath);
         Map<Integer, LabSummary> labSummaryMap = null;
@@ -84,32 +79,6 @@ public class LabToHpoCmd implements MimicCommand {
                 .collect(
                 Collectors.toMap(LabDictItem::getItemId, LabDictItem::getLoincCode));
         logger.info("local to loinc mapping successfully loaded");
-//        local2loinc.entrySet().stream().map(e-> e.getKey().toString() + " -> " + e.getValue()).forEach(System.out::println);
-
-
-        //get the primary unit for each lab test: unit with the maximum count
-        //in most cases, there are two units, one is correct (dominant) and the other missing
-        //we skip the missing one
-//        Map<Integer, String> primaryUnits = labSummaryMap.values().stream().collect(Collectors.toMap(
-//                labSummary -> labSummary.getId(),
-//                labSummary -> labSummary.getCountByUnit().entrySet().stream()
-//                        .sorted((x, y) -> y.getValue() - x.getValue()) //sort unit by counts, reverse
-//                        .map(e -> e.getKey()).findFirst().orElse("SHOULD NEVER HAPPEN!")
-//        ));
-//        logger.info("primary units for each lab test successfully loaded");
-//        logger.info("primary units - " + primaryUnits.size());
-
-
-//        //find the mean for the primary units
-//        Map<Integer, Double> primaryMeans = labSummaryMap.values().stream().collect(Collectors.toMap(
-//                labSummary -> labSummary.getId(),
-//                labSummary -> labSummary.getMeanByUnit()
-//                        .get(primaryUnits.get(labSummary.getId()))
-//        ));
-//
-//        logger.info("mean value for each lab test successfully loaded");
-//        logger.info("primary means - " + primaryMeans.size());
-
 
         Map<LoincId, LOINC2HpoAnnotationImpl> annotationMap = null;
         try {
@@ -134,14 +103,6 @@ public class LabToHpoCmd implements MimicCommand {
         }
 
         //start processing
-//        LabEvents2HpoFactory labConvertFactory = new LabEvents2HpoFactory(
-//                local2loinc,
-//                primaryUnits,
-//                primaryMeans,
-//                annotationMap,
-//                loincEntryMap
-//        );
-
         LabEvents2HpoFactory labConvertFactory = new LabEvents2HpoFactory(
                 local2loinc,
                 labSummaryMap,
@@ -174,35 +135,49 @@ public class LabToHpoCmd implements MimicCommand {
 
                     Optional<HpoTerm4TestOutcome> outcome = null;
                     try {
-                        outcome = labConvertFactory.convert2(labEvent);
+                        outcome = labConvertFactory.convert(labEvent);
+                        boolean negated = false;
                         String mappedHpo = "?";
                         if (outcome.isPresent()) {
+                            negated = outcome.get().isNegated();
                             mappedHpo = outcome.get().getId().getValue();
                         }
+                        writer.write(negated ? "T" : "F");
+                        writer.write(separator);
                         writer.write(mappedHpo);
                     } catch (LocalLabTestNotMappedToLoinc e) {
+                        writer.write("U");
+                        writer.write(separator);
                         writer.write("ERROR 1: local id not mapped to loinc");
                     } catch (MalformedLoincCodeException e) {
+                        writer.write("U");
+                        writer.write(separator);
                         writer.write("ERROR 2: malformed loinc id");
                     } catch (LoincCodeNotAnnotatedException e) {
+                        writer.write("U");
+                        writer.write(separator);
                         writer.write("ERROR 3: loinc code not annotated");
                     } catch (UnrecognizedCodeException e) {
+                        writer.write("U");
+                        writer.write(separator);
                         writer.write("ERROR 4: interpretation code not mapped to hpo");
                     } catch (UnableToInterpretateException e) {
+                        writer.write("U");
+                        writer.write(separator);
                         writer.write("ERROR 5: unable to interpret");
                     } catch (UnrecognizedUnitException e) {
+                        writer.write("U");
+                        writer.write(separator);
                         writer.write("ERROR 6: unrecognized unit");
                     }
 
                     writer.write("\n");
-
-
                 } catch (MimicHpoException e) {
                     logger.error("parsing error: " + line);
                 }
 
                 //debug with 10 records
-                if (count > 10000) {
+                if (count > Integer.MAX_VALUE) {
                     break;
                 }
             }
@@ -213,14 +188,24 @@ public class LabToHpoCmd implements MimicCommand {
             e.printStackTrace();
         }
 
+        if (printError) {
+            labConvertFactory.getFailedQnWithTextResult().forEach(f -> {
+                try {
+                    writer.write(Integer.toString(f));
+                    writer.write("\t");
+                    String loinc = local2loinc.get(f);
+                    writer.write(loinc == null ? "LOINC:[?]" : "LOINC:" + loinc);
+                    writer.write("\n");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
         try {
             writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
-        System.out.println("Lab to HPO started " + outPath);
-
     }
 }

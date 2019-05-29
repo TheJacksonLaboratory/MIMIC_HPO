@@ -66,7 +66,7 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
         mimicCommand.run();
 
         long stopTime = System.currentTimeMillis();
-        System.out.println("Phenomiser: Elapsed time was " + (stopTime - startTime)*(1.0)/1000 + " seconds.");
+        System.out.println("Mimic2Hpo: Elapsed time was " + (stopTime - startTime)*(1.0)/1000 + " seconds.");
 
     }
 

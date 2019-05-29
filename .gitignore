@@ -1,7 +1,7 @@
 .idea
 *.iml
 *.DS_Store
-*.csv
 *.ipynb_checkpoints
 *.ipynb
+*.csv
 target
