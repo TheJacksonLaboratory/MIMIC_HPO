@@ -16,7 +16,7 @@ public class LoadLabHpo implements MimicCommand {
     private String lab2hpoPath;
 
     @Autowired //todo: figure out how to inject it
-    LabHpoService service = new LabHpoService();
+    LabHpoService service;
 
     @Override
     public void run() {
@@ -31,7 +31,7 @@ public class LoadLabHpo implements MimicCommand {
                     String map_to = elems[2];
                     LabHpo labHpo = new LabHpo(rowId, negated, map_to);
                     //System.out.println(labHpo);
-                    service.save(labHpo);
+                    //service.save(labHpo);
                     count++;
                 }
             }

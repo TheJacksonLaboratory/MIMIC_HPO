@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class MimicHpoCommandlineRunner implements CommandLineRunner {
 
+    /*We let Spring manage these instances so that dependent beans can be injected*/
+
     @Autowired @Qualifier("summarizeLab")
     MimicCommand summarizeLab;
     @Autowired @Qualifier("labToHpo")
@@ -20,25 +22,21 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
     @Autowired @Qualifier ("loadLabHpo")
     MimicCommand loadLabHpo;
 
-    @Autowired JCommander jc;
+    /*Optional to include JCommander in Spring*/
+//    @Autowired JCommander jc;
 
     @Override
     public void run(String[] args) {
         long startTime = System.currentTimeMillis();
 
-//        MimicCommand summarizeLab = new SummarizeLabCmd();
-//        MimicCommand labToHpo = new LabToHpoCmd();
-//        MimicCommand hpoInference = new HpoInferenceCmd();
-//        MimicCommand loadLabHpo = new LoadLabHpo();
+        JCommander jc = JCommander.newBuilder()
+                .addObject(this)
+                .addCommand("summarizeLab", summarizeLab)
+                .addCommand("lab2hpo", labToHpo)
+                .addCommand("hpoInference", hpoInference)
+                .addCommand("loadLabHpo", loadLabHpo)
+                .build();
 
-//        JCommander jc = JCommander.newBuilder()
-//                .addObject(this)
-//                .addCommand("summarizeLab", summarizeLab)
-//                .addCommand("lab2hpo", labToHpo)
-//                .addCommand("hpoInference", hpoInference)
-//                .addCommand("loadLabHpo", loadLabHpo)
-//                .build();
-        jc.addObject(this);
         try {
             jc.parse(args);
         } catch (ParameterException e) {
