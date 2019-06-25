@@ -1,0 +1,81 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Explore the MIMIC dataset to get summary statistics.
+
+Load lab tests
+```{r}
+labevents <- read.csv("/Users/zhangx/git/MIMIC_HPO/src/main/resources/LABEVENTS.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+```{r}
+labs <- read.csv("~/Desktop/mimic2hpo.tsv", sep = "\t", header = FALSE)
+```
+
+```{r}
+library(tidyverse)
+colnames(labs) <- c("row_id", "item_id", "value", "flag", "negated", "hpo")
+labs$patient <- labevents$SUBJECT_ID
+head(labs)
+```
+
+```{r}
+hpo_n_per_patient <- 
+  labs %>% 
+  filter(negated != "U") %>%
+  group_by(as.factor(patient)) %>% 
+  summarize(hpo_n = n())
+
+labs %>% filter(negated != "U") %>% count()
+
+p1 <- ggplot(hpo_n_per_patient) + geom_histogram(aes(x = hpo_n, y = ..count../sum(..count..)), binwidth = 100, color = "black", fill = "orange") + scale_x_continuous(limits = c(-10, 3000)) + xlab("total HPO term count per patient") + ylab("percent") + theme_bw() + theme(panel.grid = element_blank())
+ggsave("~/Desktop/mimic_total_hpo_per_patient.png", width = 4, height = 2)
+
+```
+
+```{r}
+unique_hpo_n_per_patient <- 
+  labs %>% 
+  filter(negated != "U") %>%
+  select(patient, hpo) %>%
+  distinct() %>%
+  group_by(patient) %>% 
+  summarise(hpo_n = n())
+
+
+p2 <- ggplot(unique_hpo_n_per_patient) + geom_histogram(aes(x = hpo_n, y = ..count../sum(..count..)), binwidth = 10, color = "black", fill = "orange") + scale_x_continuous(limits = c(-10, 200)) + xlab("unique HPO term count per patient") + ylab("percent") + theme_bw() + theme(panel.grid = element_blank())
+ggsave("~/Desktop/mimic_unique_hpo_per_patient.png", width = 4, height = 2)
+```
+
+```{r}
+unique_abnormal_hpo_n_per_patient <- 
+  labs %>% 
+  filter(negated != "F") %>%
+  select(patient, hpo) %>%
+  distinct() %>%
+  group_by(patient) %>% 
+  summarise(hpo_n = n())
+
+
+p3 <- ggplot(unique_abnormal_hpo_n_per_patient) + geom_histogram(aes(x = hpo_n, y = ..count../sum(..count..)), binwidth = 10, color = "black", fill = "orange") + scale_x_continuous(limits = c(-10, 200)) + xlab("unique HPO term count per patient") + ylab("percent") + theme_bw() + theme(panel.grid = element_blank())
+ggsave("~/Desktop/mimic_unique_abnormal_hpo_per_patient.png", width = 4, height = 2)
+```
+
+
+```{r}
+jpeg(filename = "~/modifier.jpg", width = 600, height = 200)
+par(mfrow = c(1,3))
+curve(1/(1 + exp(2 *(-x + 5))), 0,20, 1000, xlab = "time", ylab = "modifier")
+curve(1/(1 + exp(x - 5)), 0,10, 1000, xlab = "time", ylab = "modifier")
+curve(1/(1 + exp(abs((6 - x) * 1 )- 4)), 0,10, 1000, xlab = "time", ylab = "modifier")
+dev.off()
+```
+```{r}
+loinc2.65 <- read.csv("~/Downloads/Loinc_2-4/LoincTableCore.csv")
+loinc2.63 <- read.csv("~/Downloads/Loinc_2/LoincTableCore.csv")
+mimic2hpo <- read.csv("~/Desktop/mimic2hpo.tsv", sep = "\t", header = FALSE)
+
+```
+

@@ -2,28 +2,43 @@ package org.jax;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
-import org.jax.command.HpoInferenceCmd;
-import org.jax.command.LabToHpoCmd;
-import org.jax.command.MimicCommand;
-import org.jax.command.SummarizeLabCmd;
+import org.jax.command.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
 
+@Component
 public class MimicHpoCommandlineRunner implements CommandLineRunner {
+
+    @Autowired @Qualifier("summarizeLab")
+    MimicCommand summarizeLab;
+    @Autowired @Qualifier("labToHpo")
+    MimicCommand labToHpo;
+    @Autowired @Qualifier ("hpoInference")
+    MimicCommand hpoInference;
+    @Autowired @Qualifier ("loadLabHpo")
+    MimicCommand loadLabHpo;
+
+    @Autowired JCommander jc;
 
     @Override
     public void run(String[] args) {
         long startTime = System.currentTimeMillis();
 
-        MimicCommand summarizeLab = new SummarizeLabCmd();
-        MimicCommand labToHpo = new LabToHpoCmd();
-        MimicCommand hpoInference = new HpoInferenceCmd();
+//        MimicCommand summarizeLab = new SummarizeLabCmd();
+//        MimicCommand labToHpo = new LabToHpoCmd();
+//        MimicCommand hpoInference = new HpoInferenceCmd();
+//        MimicCommand loadLabHpo = new LoadLabHpo();
 
-        JCommander jc = JCommander.newBuilder()
-                .addObject(this)
-                .addCommand("summarizeLab", summarizeLab)
-                .addCommand("lab2hpo", labToHpo)
-                .addCommand("hpoInference", hpoInference)
-                .build();
+//        JCommander jc = JCommander.newBuilder()
+//                .addObject(this)
+//                .addCommand("summarizeLab", summarizeLab)
+//                .addCommand("lab2hpo", labToHpo)
+//                .addCommand("hpoInference", hpoInference)
+//                .addCommand("loadLabHpo", loadLabHpo)
+//                .build();
+        jc.addObject(this);
         try {
             jc.parse(args);
         } catch (ParameterException e) {
@@ -56,6 +71,9 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
                 break;
             case "hpoInference":
                 mimicCommand = hpoInference;
+                break;
+            case "loadLabHpo":
+                mimicCommand = loadLabHpo;
                 break;
             default:
                     System.err.println(String.format("[ERROR] command \"%s\" not recognized",command));

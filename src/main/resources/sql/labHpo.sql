@@ -1,0 +1,28 @@
+use mimiciiiv13;
+
+CREATE TABLE IF NOT EXISTS LabHpo(
+    ROW_ID INT UNSIGNED NOT NULL,
+    NEGATED CHAR,
+--    hpo id is 7 digit, plus prefix ('HP:'), so we could use 10
+    MAP_TO VARCHAR(12),
+    PRIMARY KEY (ROW_ID)
+);
+
+LOAD DATA LOCAL INFILE 'lab2hpo.csv'
+INTO TABLE LabHpo
+   FIELDS TERMINATED BY ','
+   LINES TERMINATED BY '\n'
+   IGNORE 1 LINES
+   (@ROW_ID,@NEGATED,@MAP_TO)
+ SET
+   ROW_ID = @ROW_ID,
+   NEGATED = @NEGATED,
+   MAP_TO = CASE
+            WHEN @MAP_TO LIKE 'ERROR 1%' THEN 'ERROR1'
+            WHEN @MAP_TO LIKE 'ERROR 2%' THEN 'ERROR2'
+            WHEN @MAP_TO LIKE 'ERROR 3%' THEN 'ERROR3'
+            WHEN @MAP_TO LIKE 'ERROR 4%' THEN 'ERROR4'
+            WHEN @MAP_TO LIKE 'ERROR 5%' THEN 'ERROR5'
+            WHEN @MAP_TO LIKE 'ERROR 6%' THEN 'ERROR6'
+            ELSE @MAP_TO
+            END;

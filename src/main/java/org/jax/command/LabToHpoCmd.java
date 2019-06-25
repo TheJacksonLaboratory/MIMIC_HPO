@@ -111,6 +111,12 @@ public class LabToHpoCmd implements MimicCommand {
         );
 
         BufferedWriter writer = IoUtils.getWriter(outPath);
+        try { // write header
+            writer.write("ROW_ID,NEGATED,MAP_TO\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
         int count = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(labEventsPath))){
             String line = reader.readLine();
@@ -122,15 +128,15 @@ public class LabToHpoCmd implements MimicCommand {
                 try {
                     LabEvent labEvent = LabEventFactory.parse(line);
 
-                    final String separator = "\t";
+                    final String separator = ",";
                     writer.write(Integer.toString(labEvent.getRow_id()));
                     writer.write(separator);
-                    writer.write(Integer.toString(labEvent.getItem_id()));
-                    writer.write(separator);
-                    writer.write(labEvent.getValue());
-                    writer.write(separator);
-                    writer.write(labEvent.getFlag());
-                    writer.write(separator);
+                    //writer.write(Integer.toString(labEvent.getItem_id()));
+                    //writer.write(separator);
+                    //writer.write(labEvent.getValue());
+                    //writer.write(separator);
+                    //writer.write(labEvent.getFlag());
+                    //writer.write(separator);
 
 
                     Optional<HpoTerm4TestOutcome> outcome = null;
