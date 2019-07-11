@@ -5,3 +5,5 @@
 # *.ipynb
 *.csv
 target
+src/main/resources/result-archive.txt
+src/main/resources/result.txt

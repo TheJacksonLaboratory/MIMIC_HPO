@@ -63,6 +63,64 @@ def entropy_phenotype(P, d):
         I[i] = entropy(P[i, :].reshape([1, N]), d)
     return I
 
+def outcome(P, d, current=None):
+    """
+    Given patient profile matrix and diagnosis vector, return the counts of
+    joint distribution.
+    :param P: a M x N matrix of patient phenotype profile
+    :param d: a vector representing patient diagnosis
+    :param current: a tuple of (summary matrix, count) that new summary statistics will be added on
+    :return: a tuple of summary statistics and total count
+    """
+    M, N = P.shape
+    if current is not None:
+        m, c = current
+    else:
+        m = np.zeros([M, M])
+        c = 0
+    c = c + N
+
+    # transpose P so that columns are phenotypes and rows are patient encounters
+    P = P.T
+    p_reshape1 = P.reshape([N, M, 1])
+    p_reshape2 = P.reshape([N, 1, M])
+
+    # distribution of phenotype pairs, 1 if both phenotypes are present, 0 otherwise
+    pp = np.matmul(p_reshape1, p_reshape2)
+    # compute the joint distribution of diagnosis and phenotype pairs
+    d = d.reshape[N, 1, 1]
+    # pp * d: 1 if both phenotypes are present and positive diagnosis
+    joint = pp * d
+    ppd = np.sum(joint, axis=0) # summary count
+    # pp * (1 - d): 1 if both phenotypes are present and negative diagnosis
+    joint = pp * (1 - d)
+    ppd.stack(np.sum(joint, axis=0), axis=-1)
+
+    # distribution of phenotype pairs, 1 if phenotypes are +-, 0 otherwise
+    pp = np.matmul(p_reshape1, 1 - p_reshape2)
+    # pp * d: 1 if phenotypes are +- and positive diagnosis
+    ppd.stack(np.sum(pp * d, axis=0), axis=-1)
+    # pp * (1 - d): 1 if phenotypes are +- and negative diagnosis
+    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
+
+    # distribution of phenotype pairs, 1 if phenotypes are -+, 0 otherwise
+    pp = np.matmul(1 - P.reshape1, p_reshape2)
+    # pp * d: 1 if phenotypes are -+ and positive diagnosis
+    ppd.stack(np.sum(pp * d, axis=0), axis=-1)
+    # pp * (1 - d): 1 if phenotypes are +- and negative diagnosis
+    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
+
+    # distribution of phenotype pairs, 1 if phenotypes are --, 0 otherwise
+    pp = np.matmul(1 - p_reshape1, 1 - p_reshape2)
+    # pp * d: 1 if phenotypes are -- and positive diagnosis
+    ppd.stack(np.sum(pp * d, axis=0), axis=-1)
+    # pp * (1 - d): 1 if phenotypes are -- and negative diagnosis
+    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
+
+    m = m + ppd
+
+    return m, c
+
 
 def synergy(P, d):
     """
@@ -73,9 +131,7 @@ def synergy(P, d):
     """
     M, N = P.shape
     # I is the mutual information between each phenotype and the diagnosis
-    I = np.zeros(M)
-    for i in np.arange(M):
-        I[i] = entropy(P[i, :].reshape([1, N]), d)
+    I = entropy_phenotype(P, d)
 
     # S is the synergy matrix: each element indicates the synergy of phenotype pairs
     S = np.zeros(M * M).reshape([M, M])
@@ -87,26 +143,11 @@ def synergy(P, d):
     # organize 8 outcomes as (phenotype1, phenotype2, diagnosis): +++, ++-, +-+, +--, -++, -+-, --+, ---
     # 4. compute the information content, sum(p * log2p)
     # 5. compute the synergy by subtracting out mutual information of individual phenotypes
-    P = P.T
-    p_reshape1 = P.reshape([N, M, 1])
-    p_reshape2 = P.reshape([N, 1, M])
-    pp = np.matmul(p_reshape1, p_reshape2)
-    d = d.reshape[N, 1, 1]
-    ppd = np.sum(pp * d, axis=0)
-    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
-    pp = np.matmul(p_reshape1, 1 - p_reshape2)
-    ppd.stack(np.sum(pp * d, axis=0), axis=-1)
-    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
-    pp = np.matmul(1 - P.reshape1, p_reshape2)
-    ppd.stack(np.sum(pp * d, axis=0), axis=-1)
-    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
-    pp = np.matmul(1 - p_reshape1, 1 - p_reshape2)
-    ppd.stack(np.sum(pp * d, axis=0), axis=-1)
-    ppd.stack(np.sum(pp * (1 - d), axis=0), axis=-1)
+    m, c = outcome(P, d)
 
-    ppd = ppd / N
-    ppd = ppd * np.log2(ppd)
-    S = ppd - I.reshape([M, 1]) - I.reshape([1, M])
+    prob = m / c
+    I2 = np.sum(prob * np.log2(prob), axis=2)
+    S = I2 - I.reshape([M, 1]) - I.reshape([1, M])
     return S
 
 
@@ -127,7 +168,6 @@ def main():
 
     data = pd.DataFrame(data={'diag': diagnosis, 'phenotype': phenotype})
     p_matrix = data.phenotype.values.reshape([10, 8])
-
 
 
 if __name__ == '__main__':
