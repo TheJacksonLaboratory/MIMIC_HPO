@@ -101,7 +101,9 @@
     <resources>
       <resource>
         <directory>src/main/resources</directory>
-        <excludes>*.csv</excludes>
+        <excludes>
+        	<exclude>*.csv</exclude>
+        </excludes>
       </resource>
     </resources>
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
