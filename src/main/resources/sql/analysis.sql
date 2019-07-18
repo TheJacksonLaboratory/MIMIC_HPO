@@ -1,19 +1,4 @@
--- summarize the count of lab tests, each additionally categorized by the units
-with
-table1 AS (SELECT itemid FROM labevents group by itemid ORDER BY count(*) desc),
-table2 AS (SELECT itemid, valueuom, count(*) AS n FROM labevents group by itemid, valueuom)
-SELECT table2.itemid, table2.valueuom, table2.n FROM table1 LEFT JOIN table2 ON  table1.itemid=table2.itemid);
-
--- summarize the mean of lab tests, each additionally categorized by the units; skip non quantitative tests
-with
-table1 AS (SELECT itemid FROM labevents  WHERE valuenum IS NOT NULL group by itemid ORDER BY count(*) desc),
-table2 AS (SELECT itemid, valueuom, avg(valuenum) AS mean, count(*) AS n FROM labevents  WHERE valuenum IS NOT NULL group by itemid, valueuom)
-SELECT table2.itemid, table2.valueuom, table2.n, table2.mean
-FROM table1 LEFT JOIN table2 ON  table1.itemid=table2.itemid;
-
--- retrieve the min and max of normal lab tests with numeric values
-SELECT itemid, valueuom, min(valuenum) AS minimum, avg(valuenum) AS mean, max(valuenum) AS maximum FROM labevents  WHERE valuenum IS NOT NULL AND flag is null group by itemid, valueuom ORDER BY itemid ;
-
+-- calculate lab summary of quantitative lab findings
 WITH
 -- order lab test by their total counts
 table1 AS (SELECT itemid FROM labevents WHERE valuenum IS NOT NULL GROUP BY itemid ORDER BY count(*) DESC),
