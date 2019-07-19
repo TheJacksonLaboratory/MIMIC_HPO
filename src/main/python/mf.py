@@ -1,87 +1,28 @@
 import numpy as np
-import pandas as pd
-
-
-def entropy_single(x):
-    """
-    Compute entropy of a single random variable X
-    :param x: a single variable (X) value vector
-    :return: the entropy of variable X
-    """
-    SIZE = len(x)
-    x = pd.DataFrame(data= {'x': x})
-    p = x.groupby('x').size() / SIZE
-    return np.dot(p, np.log2(p))
-
-
-def entropy_double(x, y):
-    """
-    Compute joint entropy of two random variables X,Y
-    :param x: a single variable (X) value vector
-    :param y: a single variable (Y) value vector
-    :return: the joint entropy of X, Y
-    """
-    if len(x) != len(y):
-        raise Exception('variables have different lengths ')
-    SIZE = len(x)
-    data = pd.DataFrame(data={'x': x, 'y': y})
-    p = data.groupby(['x', 'y']).size() / SIZE
-    return np.dot(p, np.log2(p))
-
-
-def entropy(x, y=None):
-    """
-    Compute the entropy of single random variable X, or joint entropy of X, Y
-    :param x: value vector of random varialbe X
-    :param y: value vector of random variable Y
-    :return:
-    """
-    if y is None:
-        return entropy_single(x)
-    else:
-        return entropy_double(x, y)
-
-def mutual_information(prob, axis=0):
-    """
-    Compute the mutual information of two random variables X, Y
-    :param prob: a vector of probability masses
-    :return: the mutual information common to X and Y
-    """
-    return np.sum(prob * np.log2(prob), axis=axis)
-
-
-def entropy_phenotype(P, d):
-    """
-    Compute the mutual information of diagnosis-phenotype pairs.
-    :param P: a MXN matrix of patient phenotype profiles, M-phenotypes, N-patients
-    :param d: a vector representing patient diagnosis
-    :return:
-    """
-    M, N = P.shape
-    I = np.zeros(M)
-    for i in np.arange(M):
-        I[i] = entropy(P[i, :].reshape([1, N]), d)
-    return I
 
 
 def summarize_diagnosis(d):
-    '''
+    """
     Calculate the summary statistics: count of positive diagnosis and negative diagnosis
-    :param d:
-    :return:
-    '''
+    :param d: a vector of binary values (0, or 1) that indicates whether a diagnosis code is observed for each sample.
+    :return: the count of cases and controls.
+    """
     case_N = np.sum(d)
     control_N = np.sum(1 - d)
     return case_N, control_N
 
 
 def summarize_diagnosis_phenotype(P, d):
-    '''
+    """
     Calculate the summary statistics of diagnosis*phenotype joint distributions
-    :param P: phenotype profile matrix, N x M
-    :param d: diagnosis vector
-    :return: summary statistics. row, phenotype; column, counts in the order of Phenotype:diagnosis(++, +-, -+, --)
-    '''
+    :param P: a N x M matrix representing the phenotype profiles of N samples. One row represents one sample. Columns
+    represent separate phenotypes. Values are 0 (corresponding phenotype is not observed for the sample) or 1
+    (corresponding phenotype is observed for the sample).
+    :param d: a vector of binary values (0, or 1) that indicates whether a diagnosis code is observed for each sample.
+    :return: a M X 4 matrix of summary statistics. rows, phenotypes;
+    columns, outcomes of Phenotype:diagnosis(++, +-, -+, --);
+    values, the count of observed samples for the phenotype*diagnosis joint distribution.
+    """
     N, M = P.shape
     d = d.reshape([N, 1])
     pd = np.stack([np.sum(P * d, axis=0),
@@ -92,12 +33,17 @@ def summarize_diagnosis_phenotype(P, d):
 
 
 def summarize_diagnosis_phenotype_pair(P, d):
-    '''
+    """
     Calculate the summary statistics of diagnosis*phenotype_pair joint distributions
-    :param P: N x M phenotype profile. row, one record of phenotype profile; column, phenotype profile
-    :param d: a size N vector representing diagnosis (0 or 1) for each phenotype profile
-    :return: the summary statistics of diagnosis*phenotype_pair joint distribution
-    '''
+    :param P: a N x M matrix representing the phenotype profiles of N samples. One row represents one sample. Columns
+    represent separate phenotypes. Values are 0 (corresponding phenotype is not observed for the sample) or 1
+    (corresponding phenotype is observed for the sample).
+    :param d: a vector of binary values (0, or 1) that indicates whether a diagnosis code is observed for each sample.
+    :return: a M X M X 8 matrix for the summary statistics of diagnosis*phenotype_pair joint distributions.
+    First dimension, phenotype 1;
+    Second dimension, phenotype 2;
+    Third dimension, eight outcomes for the joint distribution of phenotype_pair*diagnosis, +++, ++-, +-+, +--, -++, -+-, --+, ---
+    """
     N, M = P.shape
     p_reshape1 = P.reshape([N, M, 1])
     p_reshape2 = P.reshape([N, 1, M])
@@ -191,7 +137,7 @@ def summarize(P, d, current=None):
 
 def mf_diagnosis_phenotype(m1, case_N, control_N):
     '''
-    Given the summary statistics for single phenotypes, return the
+    Given the summary statistics for single phenotypes, return the mutual information between each of them and diagnosis
     :param m1: summary statistics for the joint distribution of diagnosis*phenotype (Phenotype:diagnosis(++, +-, -+, --)
     :param case_N: total count of cases
     :param control_N: total count of controls
@@ -201,17 +147,39 @@ def mf_diagnosis_phenotype(m1, case_N, control_N):
     N = case_N + control_N
     prob = m1 / N
     prob_diag = case_N / N
-    prob_pheno = np.sum(prob[:, 0:1], axis=0)
+    prob_pheno = np.sum(prob[:, [0,1]], axis=1)
     prob_diag_M = np.stack([np.repeat(prob_diag, M),
                             np.repeat(1 - prob_diag, M),
                             np.repeat(prob_diag, M),
                             np.repeat(1 - prob_diag, M)], axis=1)
     prob_pheno_M = np.stack([prob_pheno, prob_pheno, 1 - prob_pheno, 1 - prob_pheno], axis=1)
+    I = np.sum(prob * np.log2(prob / (prob_diag_M * prob_pheno_M)), axis=1)
+    return I, prob_diag, prob_pheno
 
 
+def mf_diagnosis_phenotype_pair(m2, case_N, control_N):
+    '''
+    Given the summary statistics for phenotype pairs, return the mutual information between each of them and diagnosis
+    :param m2:
+    :param case_N:
+    :param control_N:
+    :return:
+    '''
+    N = case_N + control_N
+    prob_diag = case_N / N
+    M = m2.shape[0]
+    prob = m2 / N
+    prob_pheno_M = np.repeat(prob[:,:,[1,3,5,7]] + prob[:,:,[0,2,4,6]], 2, axis=-1)
+    prob_diag_M = np.repeat(np.array([prob_diag, 1 - prob_diag]).reshape([1,1,2]), 4, axis=-1)
+    temp = np.zeros([M, M, 8])
+    non_zero_valued_indices = np.logical_and(prob != 0, prob_pheno_M * prob_diag_M != 0)
+    temp2 = prob_pheno_M * prob_diag_M
+    temp[non_zero_valued_indices] = np.log2(prob[non_zero_valued_indices] / temp2[non_zero_valued_indices])
+    II = np.sum(prob * temp, axis=-1)
+    return II
 
 
-def synergy(m1, m2, case_N, control_N):
+def synergy(I, II):
     """
     Compute pairwise synergy of phenotypes in respect to one diagnosis
     :param P: a M x N matrix of patient phenotype profile
@@ -227,6 +195,7 @@ def synergy(m1, m2, case_N, control_N):
     # 5. compute the synergy by subtracting out mutual information of individual phenotypes
 
     # 1. compute the mutual information for single phenotypes and diagnosis
-
+    M = len(I)
+    S = II - I.reshape([M, 1]) - I.reshape([1, M])
 
     return S
