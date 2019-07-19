@@ -7,9 +7,9 @@ import math
 class TestMF(unittest.TestCase):
 
     def setUp(self):
-        # set up: 7 records of encounters
+        # set up: 7 records
         self.d = np.array([0,1,0,1,0,1,1])
-        # set up: for each encounter, record 4 phenotypes
+        # set up: for each record, record 4 phenotypes
         self.P = np.array([[0,0,1,1],
                            [1,0,1,1],
                            [0,0,0,0],
@@ -60,7 +60,6 @@ class TestMF(unittest.TestCase):
                                                 [3, 1, 1, 2],
                                                 [3, 1, 1, 2]])).tolist())
 
-
     def test_mf_diagnosis_phenotype(self):
         case_N = 4
         control_N = 3
@@ -70,8 +69,6 @@ class TestMF(unittest.TestCase):
         self.assertAlmostEqual(I[0], temp)
         temp = 2/7 * math.log2(14/12) + 1/7 * math.log2(7/9) + 2/7 * math.log2(14/16) + 2/7 * math.log2(14/12)
         self.assertAlmostEqual(I[1], temp)
-
-
 
     def test_mf_diagnosis_phenotype_pair(self):
         case_N = 4
@@ -95,7 +92,6 @@ class TestMF(unittest.TestCase):
                                1/7 * math.log2(7/4) +
                                2/7 * math.log2(14/6))
 
-
     def test_synergy(self):
         I = np.array([0.1, 0.2, 0.3])
         II = np.array([[0.1, 0.4, 0.2],
@@ -107,6 +103,30 @@ class TestMF(unittest.TestCase):
                                          [0.1, -0.3, -0.5],
                                          [-0.2, -0.5, -0.3]]).all(),
                                delta=0.001)
+
+    def test_class_constructor(self):
+        disease_name = 'MONDO:heart failure'
+        pl = np.array(['HP:001', 'HP:002', 'HP:003'])
+        heart_failure = mf.Synergy(disease_name, phenotype_list=pl)
+        self.assertEqual(heart_failure.get_disease(), 'MONDO:heart failure')
+        self.assertEqual(heart_failure.get_phenotype_list().tolist(), pl.tolist())
+        pl_reset = ['Hypokalemia', 'Hyperglycemia', 'Hypertension']
+        heart_failure.set_phenotype_label(pl_reset)
+        self.assertEqual(heart_failure.get_phenotype_list().tolist(), pl_reset)
+
+    def test_class_logic(self):
+        heart_failure = mf.Synergy(disease='heart failure', phenotype_list=['HP:001', 'HP:002', 'HP:003', 'HP:004'])
+        heart_failure.add_batch(self.P, self.d)
+        S = heart_failure.pairwise_synergy()
+        # update with the same set of data should not affect synergy
+        heart_failure.add_batch(self.P, self.d)
+        S_updated = heart_failure.pairwise_synergy()
+        self.assertEqual(S.all(), S_updated.all())
+
+        self.assertEqual(heart_failure.get_case_count(), 8)
+        self.assertEqual(heart_failure.get_control_count(), 6)
+
+
 
 
 if __name__ == '__main__':

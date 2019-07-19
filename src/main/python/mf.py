@@ -1,6 +1,97 @@
 import numpy as np
 
 
+class Synergy:
+    """
+    Class to compute the pairwise synergy of disease phenotypes. Initialize class by providing the disease id,
+    and a list of HPO terms to analyze.
+    """
+
+    def __init__(self, disease, phenotype_list):
+        # disease id
+        self.disease = disease
+        M = len(phenotype_list)
+        # summary statistic for phenotype*diagnosis joint distribution
+        # rows: phenotypes
+        # column: ++, +-, -+, -- of phenotype*diagnosis joint distribution
+        self.m1 = np.zeros([M, 4])
+        # summary statistic for phenotype_pair*diagnosis joint distribution
+        # dimension 1: phenotype 1
+        # dimension 2: phenotype 2
+        # dimension 3: +++, ++-, +-+, +--, -++, -+-, --+, --- of phenotype1 * phenotype 2 * diagnosis joint distribution
+        self.m2 = np.zeros([M, M, 8])
+        # count of positive diagnoses
+        self.case_N = 0
+        # count of negative diagnoses
+        self.control_N = 0
+        # name of phenotypes
+        self.phenotype_label = np.array(phenotype_list)
+
+    def set_phenotype_label(self, phenotype_list):
+        """
+        Set the label of phenotypes
+        :param phenotype_list: a string vector for the names of phenotypes
+        :return: None
+        """
+        assert len(phenotype_list) == len(self.phenotype_label)
+        self.phenotype_label = np.array(phenotype_list)
+
+    def get_disease(self):
+        """
+        Function to get the disease id
+        :return: disease id
+        """
+        return self.disease
+
+    def get_phenotype_list(self):
+        """
+        Function to get the phenotype list
+        :return: phenotype list
+        """
+        return self.phenotype_label
+
+    def get_case_count(self):
+        """
+        Function to get the total count of cases
+        :return: count of positive diagnoses
+        """
+        return self.case_N
+
+    def get_control_count(self):
+        """
+        Function to get the total count of controls
+        :return: count of negative diagnoses
+        """
+        return self.control_N
+
+    def get_sample_size(self):
+        """
+        Function to get the total count of cases and controls
+        :return: total sample size
+        """
+        return self.case_N + self.control_N
+
+    def add_batch(self, P, d):
+        """
+        Add a batch of samples for the current disease. Calling this function automatically update summary statistics.
+        :param P: a batch_size X M matrix of phenotype profiles
+        :param d: a batch_size vector of binary values representing the presence (1) or absence (0) of the disease
+        :return: None
+        """
+
+        self.m1, self.m2, self.case_N, self.control_N = summarize(P, d, current=[self.m1, self.m2, self.case_N, self.control_N])
+
+    def pairwise_synergy(self):
+        """
+        Calculate the pairwise synergy of phenotype pairs for the current disease.
+        :return: the synergy of phenotype pairs for the current disease
+        """
+        I,_,_ = mf_diagnosis_phenotype(self.m1, self.case_N, self.control_N)
+        II = mf_diagnosis_phenotype_pair(self.m2, self.case_N, self.control_N)
+        S = synergy(I, II)
+        return S
+
+
 def summarize_diagnosis(d):
     """
     Calculate the summary statistics: count of positive diagnosis and negative diagnosis
