@@ -5,6 +5,15 @@ class Synergy:
     """
     Class to compute the pairwise synergy of disease phenotypes. Initialize class by providing the disease id,
     and a list of HPO terms to analyze.
+
+    Equations:
+    mutual information common to X and Y
+    I(X;Y) =sum[p(x,y) * log2(p(x,y)/(p(x)*p(y)) for (x in X, y in Y)]
+    synergy of X, Y in respect to Z
+    Syn(X, Y; Z) = I(X, Y; Z) - [I(X;Z) + I(Y;Z)]
+
+    Reference paper:
+    Anastassiou D, Computational analysis of the synergy among multiple interacting genes. Molecular System Biology 3:83
     """
 
     def __init__(self, disease, phenotype_list):
