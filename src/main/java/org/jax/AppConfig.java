@@ -1,29 +1,23 @@
 package org.jax;
 
-import com.beust.jcommander.JCommander;
-import org.jax.command.*;
+import org.jax.command.HpoInferenceCmd;
+import org.jax.command.LabToHpoCmd;
+import org.jax.command.LoadLabHpo;
+import org.jax.command.MimicCommand;
+import org.jax.command.SummarizeLabCmd;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AppConfig {
-
-//    @Bean
-//    JCommander jcommander(MimicCommand summarizeLab, MimicCommand labToHpo, MimicCommand loadLabHpo,
-//                          MimicCommand hpoInference) {
-//        JCommander jc = JCommander.newBuilder()
-//                //.addObject(this)
-//                .addCommand("summarizeLab", summarizeLab)
-//                .addCommand("lab2hpo", labToHpo)
-//                .addCommand("hpoInference", hpoInference)
-//                .addCommand("loadLabHpo", loadLabHpo)
-//                .build();
-//        return jc;
-//    }
+	
+	@Autowired
+	LabSummaryService labSummaryService;
 
     @Bean (name = "summarizeLab")
     MimicCommand summarizeLab(){
-        return new SummarizeLabCmd();
+        return new SummarizeLabCmd(labSummaryService);
     }
 
     @Bean (name = "labToHpo")
