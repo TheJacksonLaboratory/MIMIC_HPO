@@ -30,10 +30,7 @@ public class SummarizeLabCmd implements MimicCommand {
 	@Override
     public void run() {
 
-		long start = System.currentTimeMillis();
 		List<LabSummaryStatistics> stats = labSummaryService.labSummaryStatistics();
-		long finish = System.currentTimeMillis();
-		logger.info("Summary statistics returned in " + (finish-start)/1000.0 + " seconds");
 
         BufferedWriter writer = IoUtils.getWriter(outPath);
         stats.stream().forEach(labSummary -> {
