@@ -1,0 +1,18 @@
+# Keys without a value are passed into the config via a .env file in the same
+# directory as the `docker-compose` command was run from
+version: "2"
+services:
+  mysql:
+    image: mysql:5.7
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker_data/mysql:/var/lib/mysql
+      - ./docker_data/mimic:/mimic
+      - ./custom.cnf:/etc/mysql/mysql.conf.d/custom.cnf
+    environment:
+      - MYSQL_DATABASE=mimiciiiv13
+      - MYSQL_USER=mimicuser
+      - MYSQL_PASSWORD=mimic
+      - MYSQL_ROOT_PASSWORD=root
+    restart: always
