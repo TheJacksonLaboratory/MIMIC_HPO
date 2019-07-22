@@ -1,12 +1,20 @@
 package org.jax.command;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import org.jax.Entity.LabDictItem;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+
 import org.jax.Entity.LabEvent;
-import org.jax.lab2hpo.LabSummary;
-import org.jax.io.*;
+import org.jax.io.IoUtils;
+import org.jax.io.LabEventFactory;
+import org.jax.io.LabSummaryParser;
+import org.jax.io.MimicHpoException;
 import org.jax.lab2hpo.LabEvents2HpoFactory;
+import org.jax.lab2hpo.LabSummary;
 import org.jax.lab2hpo.UnableToInterpretateException;
 import org.jax.lab2hpo.UnrecognizedUnitException;
 import org.jax.service.LocalLabTestNotMappedToLoinc;
@@ -21,10 +29,8 @@ import org.monarchinitiative.loinc2hpo.loinc.LoincId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 
 /**
  * Class to convert laboratory tests into HPO terms
@@ -61,24 +67,8 @@ public class LabToHpoCmd implements MimicCommand {
             labSummaryMap = labSummaryparser.parse();
         } catch (IOException e) {
             e.printStackTrace();
-        }
-
-        //get the local lab test code to loinc mapping
-        String labDictPath = this.getClass().getClassLoader().getResource("D_LABITEMS.csv").getPath();
-        LabDictParser labDictParser = new LabDictParser(labDictPath);
-        Map<Integer, LabDictItem> labDictMap = null;
-        try {
-            labDictMap = labDictParser.parse();
-        } catch (IOException e) {
-            logger.error("local to loinc mapping failed loading. Exiting...");
-            e.printStackTrace();
             System.exit(1);
         }
-        Map<Integer, String> local2loinc = labDictMap.values().stream()
-                .filter(labDictItem -> ! labDictItem.getLoincCode().isEmpty()) // some are not mapped to loinc
-                .collect(
-                Collectors.toMap(LabDictItem::getItemId, LabDictItem::getLoincCode));
-        logger.info("local to loinc mapping successfully loaded");
 
         Map<LoincId, LOINC2HpoAnnotationImpl> annotationMap = null;
         try {
@@ -104,7 +94,6 @@ public class LabToHpoCmd implements MimicCommand {
 
         //start processing
         LabEvents2HpoFactory labConvertFactory = new LabEvents2HpoFactory(
-                local2loinc,
                 labSummaryMap,
                 annotationMap,
                 loincEntryMap
@@ -117,6 +106,7 @@ public class LabToHpoCmd implements MimicCommand {
             e.printStackTrace();
             System.exit(1);
         }
+        
         int count = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(labEventsPath))){
             String line = reader.readLine();
@@ -195,17 +185,17 @@ public class LabToHpoCmd implements MimicCommand {
         }
 
         if (printError) {
-            labConvertFactory.getFailedQnWithTextResult().forEach(f -> {
+        	for (Integer f : labConvertFactory.getFailedQnWithTextResult()) {
                 try {
                     writer.write(Integer.toString(f));
                     writer.write("\t");
-                    String loinc = local2loinc.get(f);
+                    String loinc = labSummaryMap.get(f).getLoinc();
                     writer.write(loinc == null ? "LOINC:[?]" : "LOINC:" + loinc);
                     writer.write("\n");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            });
+        	}        	
         }
 
         try {
