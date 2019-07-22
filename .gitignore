@@ -11,3 +11,4 @@ src/main/resources/result.txt
 .project
 .settings
 docker_data
+src/main/python/__pycache__/

@@ -98,7 +98,7 @@ class Synergy:
         I,_,_ = mf_diagnosis_phenotype(self.m1, self.case_N, self.control_N)
         II = mf_diagnosis_phenotype_pair(self.m2, self.case_N, self.control_N)
         S = synergy(I, II)
-        return S
+        return I, II, S
 
 
 def summarize_diagnosis(d):
@@ -270,7 +270,7 @@ def mf_diagnosis_phenotype_pair(m2, case_N, control_N):
     M = m2.shape[0]
     prob = m2 / N
     prob_pheno_M = np.repeat(prob[:,:,[1,3,5,7]] + prob[:,:,[0,2,4,6]], 2, axis=-1)
-    prob_diag_M = np.repeat(np.array([prob_diag, 1 - prob_diag]).reshape([1,1,2]), 4, axis=-1)
+    prob_diag_M = np.tile(np.array([prob_diag, 1 - prob_diag]).reshape([1,1,2]), 4)
     temp = np.zeros([M, M, 8])
     non_zero_valued_indices = np.logical_and(prob != 0, prob_pheno_M * prob_diag_M != 0)
     temp2 = prob_pheno_M * prob_diag_M
