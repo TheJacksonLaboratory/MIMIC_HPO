@@ -117,10 +117,10 @@ class TestMF(unittest.TestCase):
     def test_class_logic(self):
         heart_failure = mf.Synergy(disease='heart failure', phenotype_list=['HP:001', 'HP:002', 'HP:003', 'HP:004'])
         heart_failure.add_batch(self.P, self.d)
-        _,_,S = heart_failure.pairwise_synergy()
+        S = heart_failure.pairwise_synergy()
         # update with the same set of data should not affect synergy
         heart_failure.add_batch(self.P, self.d)
-        _,_,S_updated = heart_failure.pairwise_synergy()
+        S_updated = heart_failure.pairwise_synergy()
         self.assertEqual(S.all(), S_updated.all())
 
         self.assertEqual(heart_failure.get_case_count(), 8)

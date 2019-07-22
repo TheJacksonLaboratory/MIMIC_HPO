@@ -3,8 +3,13 @@ import numpy as np
 
 class Synergy:
     """
-    Class to compute the pairwise synergy of disease phenotypes. Initialize class by providing the disease id,
-    and a list of HPO terms to analyze.
+    Class to represent and compute the pairwise phenotypic synergy of a
+    disease diagnosis. Initialize class by providing the disease id and a
+    list of HPO terms to analyze. An instance takes in small batches of data,
+    including a phenotype profile matrix and a diagnosis vector,
+    and automatically updates summary statistics. The mutual information
+    between single phenotypes and diagnosis, phenotype pairs and diagnosis,
+    and the pairwise phenotypic synergy are returned.
 
     Equations:
     mutual information common to X and Y
@@ -12,8 +17,19 @@ class Synergy:
     synergy of X, Y in respect to Z
     Syn(X, Y; Z) = I(X, Y; Z) - [I(X;Z) + I(Y;Z)]
 
+    To compute the synergy of phenotypic pairs, we need to get
+    1. the values of a phenotype pair, ++, +-, -+, --;
+    2. the values of diagnosis, which is provided;
+    3. compute the joint value (diagnosis * phenotype pair) as a M x M x 8
+    matrix. Organize 8 outcomes as (phenotype1, phenotype2, diagnosis): +++,
+    ++-, +-+, +--, -++, -+-, --+, ---;
+    4. compute the information content, sum(p * log2p);
+    5. compute the synergy by subtracting out mutual information of
+    individual phenotypes
+
     Reference paper:
-    Anastassiou D, Computational analysis of the synergy among multiple interacting genes. Molecular System Biology 3:83
+    Anastassiou D, Computational analysis of the synergy among multiple
+    interacting genes. Molecular System Biology 3:83
     """
 
     def __init__(self, disease, phenotype_list):
@@ -27,7 +43,8 @@ class Synergy:
         # summary statistic for phenotype_pair*diagnosis joint distribution
         # dimension 1: phenotype 1
         # dimension 2: phenotype 2
-        # dimension 3: +++, ++-, +-+, +--, -++, -+-, --+, --- of phenotype1 * phenotype 2 * diagnosis joint distribution
+        # dimension 3: +++, ++-, +-+, +--, -++, -+-, --+, --- of phenotype1
+        # * phenotype 2 * diagnosis joint distribution
         self.m2 = np.zeros([M, M, 8])
         # count of positive diagnoses
         self.case_N = 0
@@ -82,13 +99,28 @@ class Synergy:
 
     def add_batch(self, P, d):
         """
-        Add a batch of samples for the current disease. Calling this function automatically update summary statistics.
+        Add a batch of samples for the current disease. Calling this
+        function automatically update summary statistics.
         :param P: a batch_size X M matrix of phenotype profiles
-        :param d: a batch_size vector of binary values representing the presence (1) or absence (0) of the disease
+        :param d: a batch_size vector of binary values representing
+        the presence (1) or absence (0) of the disease
         :return: None
         """
 
-        self.m1, self.m2, self.case_N, self.control_N = summarize(P, d, current=[self.m1, self.m2, self.case_N, self.control_N])
+        self.m1, self.m2, self.case_N, self.control_N = summarize(P, d,
+            current=[self.m1, self.m2, self.case_N, self.control_N])
+
+    def mutual_information(self):
+        """
+        Calculate and return the mutual information between individual
+        phenotypes and diagnosis, and between phenotype pairs and diagnosis.
+        :return: two arrays--mutual information between individual phenotypes
+        and the diagnosis, and mutual information between phenotype pairs
+        and the diagnosis
+        """
+        I, _, _ = mf_diagnosis_phenotype(self.m1, self.case_N, self.control_N)
+        II = mf_diagnosis_phenotype_pair(self.m2, self.case_N, self.control_N)
+        return I, II
 
     def pairwise_synergy(self):
         """
@@ -98,13 +130,15 @@ class Synergy:
         I,_,_ = mf_diagnosis_phenotype(self.m1, self.case_N, self.control_N)
         II = mf_diagnosis_phenotype_pair(self.m2, self.case_N, self.control_N)
         S = synergy(I, II)
-        return I, II, S
+        return S
 
 
 def summarize_diagnosis(d):
     """
-    Calculate the summary statistics: count of positive diagnosis and negative diagnosis
-    :param d: a vector of binary values (0, or 1) that indicates whether a diagnosis code is observed for each sample.
+    Calculate the summary statistics: count of positive diagnosis and
+    negative diagnosis
+    :param d: a vector of binary values (0, or 1) that indicates whether a
+    diagnosis code is observed for each sample.
     :return: the count of cases and controls.
     """
     case_N = np.sum(d)
@@ -115,13 +149,15 @@ def summarize_diagnosis(d):
 def summarize_diagnosis_phenotype(P, d):
     """
     Calculate the summary statistics of diagnosis*phenotype joint distributions
-    :param P: a N x M matrix representing the phenotype profiles of N samples. One row represents one sample. Columns
-    represent separate phenotypes. Values are 0 (corresponding phenotype is not observed for the sample) or 1
-    (corresponding phenotype is observed for the sample).
-    :param d: a vector of binary values (0, or 1) that indicates whether a diagnosis code is observed for each sample.
-    :return: a M X 4 matrix of summary statistics. rows, phenotypes;
-    columns, outcomes of Phenotype:diagnosis(++, +-, -+, --);
-    values, the count of observed samples for the phenotype*diagnosis joint distribution.
+    :param P: a N x M matrix representing the phenotype profiles of N
+    samples. One row represents one sample. Columns represent separate
+    phenotypes. Values are 0 (corresponding phenotype is not observed for
+    the sample) or 1 (corresponding phenotype is observed for the sample).
+    :param d: a vector of binary values (0, or 1) that indicates whether
+    a diagnosis code is observed for each sample.
+    :return: a M X 4 matrix of summary statistics. rows, phenotypes; columns,
+    outcomes of Phenotype:diagnosis(++, +-, -+, --); values, the count of
+    observed samples for the phenotype*diagnosis joint distribution.
     """
     N, M = P.shape
     d = d.reshape([N, 1])
@@ -134,15 +170,20 @@ def summarize_diagnosis_phenotype(P, d):
 
 def summarize_diagnosis_phenotype_pair(P, d):
     """
-    Calculate the summary statistics of diagnosis*phenotype_pair joint distributions
-    :param P: a N x M matrix representing the phenotype profiles of N samples. One row represents one sample. Columns
-    represent separate phenotypes. Values are 0 (corresponding phenotype is not observed for the sample) or 1
-    (corresponding phenotype is observed for the sample).
-    :param d: a vector of binary values (0, or 1) that indicates whether a diagnosis code is observed for each sample.
-    :return: a M X M X 8 matrix for the summary statistics of diagnosis*phenotype_pair joint distributions.
+    Calculate the summary statistics of diagnosis*phenotype_pair joint
+    distributions
+    :param P: a N x M matrix representing the phenotype profiles of N
+    samples. One row represents one sample. Columns represent separate
+    phenotypes. Values are 0 (corresponding phenotype is not observed for the
+    sample) or 1(corresponding phenotype is observed for the sample).
+    :param d: a vector of binary values (0, or 1) that indicates whether
+    a diagnosis code is observed for each sample.
+    :return: a M X M X 8 matrix for the summary statistics
+    of diagnosis*phenotype_pair joint distributions.
     First dimension, phenotype 1;
     Second dimension, phenotype 2;
-    Third dimension, eight outcomes for the joint distribution of phenotype_pair*diagnosis, +++, ++-, +-+, +--, -++, -+-, --+, ---
+    Third dimension, eight outcomes for the joint distribution
+    of phenotype_pair*diagnosis, +++, ++-, +-+, +--, -++, -+-, --+, ---
     """
     N, M = P.shape
     p_reshape1 = P.reshape([N, M, 1])
@@ -186,9 +227,11 @@ def summarize(P, d, current=None):
     """
     Given patient profile matrix and diagnosis vector, return the counts of
     joint distribution.
-    :param P: a N X M matrix of patient phenotype profile, N: sample size, M: number of phenotype set
+    :param P: a N X M matrix of patient phenotype profile, N: sample size,
+    M: number of phenotype set
     :param d: a vector representing patient diagnosis
-    :param current: a list of summary statistics that new summary statistics will be added to
+    :param current: a list of summary statistics that new summary statistics
+    will be added to
     :return: a list of summary statistics
     """
     N, M = P.shape
@@ -237,8 +280,10 @@ def summarize(P, d, current=None):
 
 def mf_diagnosis_phenotype(m1, case_N, control_N):
     '''
-    Given the summary statistics for single phenotypes, return the mutual information between each of them and diagnosis
-    :param m1: summary statistics for the joint distribution of diagnosis*phenotype (Phenotype:diagnosis(++, +-, -+, --)
+    Given the summary statistics for single phenotypes, return the mutual
+    information between each of them and diagnosis
+    :param m1: summary statistics for the joint distribution of
+    diagnosis*phenotype (Phenotype:diagnosis(++, +-, -+, --)
     :param case_N: total count of cases
     :param control_N: total count of controls
     :return: mutual information of single phenotypes and diagnosis
@@ -259,7 +304,8 @@ def mf_diagnosis_phenotype(m1, case_N, control_N):
 
 def mf_diagnosis_phenotype_pair(m2, case_N, control_N):
     '''
-    Given the summary statistics for phenotype pairs, return the mutual information between each of them and diagnosis
+    Given the summary statistics for phenotype pairs, return the mutual
+    information between each of them and diagnosis
     :param m2:
     :param case_N:
     :param control_N:
@@ -286,16 +332,10 @@ def synergy(I, II):
     :param d: a vector representing patient diagnosis
     :return: a matrix of pairwise synergy
     """
-    # to compute the synergy of each pair, we need to get
-    # 1. the values of a phenotype pair, ++, +-, -+, --
-    # 2. the values of diagnosis, which is provided
-    # 3. compute the joint value (diagnosis * phenotype pair) as a M x M x 8 matrix
-    # organize 8 outcomes as (phenotype1, phenotype2, diagnosis): +++, ++-, +-+, +--, -++, -+-, --+, ---
-    # 4. compute the information content, sum(p * log2p)
-    # 5. compute the synergy by subtracting out mutual information of individual phenotypes
 
-    # 1. compute the mutual information for single phenotypes and diagnosis
+
     M = len(I)
+    assert M == II.shape[0]
     S = II - I.reshape([M, 1]) - I.reshape([1, M])
 
     return S
