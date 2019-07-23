@@ -59,6 +59,7 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
         }
 
         MimicCommand mimicCommand = null;
+        System.out.println("Starting command " + command);
 
         switch (command) {
             case "summarizeLab":

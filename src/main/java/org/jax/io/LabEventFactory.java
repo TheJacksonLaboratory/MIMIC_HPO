@@ -1,9 +1,13 @@
 package org.jax.io;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jax.Entity.LabEvent;
+import org.jax.jdbc.ResultSetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 
 public class LabEventFactory {
@@ -60,5 +64,35 @@ public class LabEventFactory {
 
         return event;
     }
+
+	public static LabEvent parse(ResultSet rs) throws SQLException {
+		int row_id = rs.getInt("ROW_ID");
+		int subject_id = rs.getInt("SUBJECT_ID");
+		int hadm_id = rs.getInt("HADM_ID");
+		int item_id = rs.getInt("ITEMID");
+		Timestamp charttime = rs.getTimestamp("CHARTTIME");
+		String value = ResultSetUtil.getStringOrBlank(rs, "VALUE").trim().replace("\"", "");
+        float valuenum;
+        if (StringUtils.isBlank(rs.getString("VALUENUM"))) {
+            valuenum = Float.MAX_VALUE;
+        } else {
+            valuenum = Float.parseFloat(rs.getString("VALUENUM").trim());
+        }
+        String valueuom = ResultSetUtil.getStringOrBlank(rs, "VALUEUOM").trim().replace("\"", "");
+        String flag = ResultSetUtil.getStringOrBlank(rs, "FLAG").trim().replace("\"", "");
+
+		LabEvent labEvent = new LabEvent(row_id,
+                subject_id,
+                hadm_id,
+                item_id,
+                charttime,
+                value,
+                valuenum,
+                valueuom,
+                flag);
+		
+		return labEvent;
+	
+	}
 
 }

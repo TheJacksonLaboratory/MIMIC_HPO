@@ -1,4 +1,4 @@
-package org.jax;
+package org.jax.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,13 +16,14 @@ public class LabSummaryService {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
-	private final String labSummaryStatistics = "select e.itemid, e.valueuom, i.loinc_code as loinc, count(*) as counts, avg(valuenum) as mean_all,\n" + 
+	private final String labSummaryStatistics = "select a.itemid, valueuom, i.loinc_code as 'loinc', counts, mean_all, min_normal, mean_normal, max_normal from\n" + 
+			"(select e.itemid, e.valueuom, count(*) as counts, avg(valuenum) as mean_all,\n" + 
 			"min(case when (valuenum IS NOT NULL and (flag IS NULL OR UPPER(flag)!='ABNORMAL')) then valuenum else null end) as min_normal,\n" + 
 			"avg(case when (valuenum IS NOT NULL and (flag IS NULL OR UPPER(flag)!='ABNORMAL')) then valuenum else null end) as mean_normal,\n" + 
 			"max(case when (valuenum IS NOT NULL and (flag IS NULL OR UPPER(flag)!='ABNORMAL')) then valuenum else null end) as max_normal\n" + 
 			"from labevents e\n" + 
-			"join d_labitems i on i.itemid = e.itemid\n" + 
-			"GROUP BY e.itemid, e.valueuom";
+			"GROUP BY e.itemid, e.valueuom) as a\n" + 
+			"join d_labitems i on a.itemid = i.itemid";
 	
 	public List<LabSummaryStatistics> labSummaryStatistics() {		
 		return jdbcTemplate.query(labSummaryStatistics, getRowMapper());
@@ -39,23 +40,14 @@ public class LabSummaryService {
 				statistics.setValueuom(rs.getString("valueuom"));
 				statistics.setLoinc(rs.getString("loinc"));
 				statistics.setCounts(rs.getInt("counts"));
-				statistics.setMean_all(getDoubleOrNull(rs, "mean_all"));
-				statistics.setMin_normal(getDoubleOrNull(rs, "min_normal"));
-				statistics.setMean_normal(getDoubleOrNull(rs, "mean_normal"));
-				statistics.setMax_normal(getDoubleOrNull(rs, "max_normal"));
+				statistics.setMean_all(ResultSetUtil.getDoubleOrNull(rs, "mean_all"));
+				statistics.setMin_normal(ResultSetUtil.getDoubleOrNull(rs, "min_normal"));
+				statistics.setMean_normal(ResultSetUtil.getDoubleOrNull(rs, "mean_normal"));
+				statistics.setMax_normal(ResultSetUtil.getDoubleOrNull(rs, "max_normal"));
 				return statistics;
 			}  
 		};
 		
-	}
-
-	// Override the resultSet behavior of returning 0.0 if the field is null
-	private static Double getDoubleOrNull(ResultSet rs, String fieldName) throws SQLException {
-		Double result = rs.getDouble(fieldName);
-		if (rs.wasNull()) {
-			result = null;
-		}
-		return result;
 	}
 
 }
