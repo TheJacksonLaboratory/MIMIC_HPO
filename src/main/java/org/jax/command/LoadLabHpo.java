@@ -27,7 +27,7 @@ public class LoadLabHpo implements MimicCommand {
                 if (!line.startsWith("ROW_ID")){ //ignore header
                     String [] elems = line.split(",");
                     int rowId = Integer.parseInt(elems[0]);
-                    char negated = elems[1].charAt(0);
+                    String negated = elems[1];
                     String map_to = elems[2];
                     LabHpo labHpo = new LabHpo(rowId, negated, map_to);
                     //System.out.println(labHpo);

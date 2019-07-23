@@ -13,11 +13,11 @@ public class LabHpo {
     @Column(name = "ROW_ID")
     int rowid;
     @Column(name = "NEGATED")
-    char negated;
+    String negated;
     @Column(name = "MAP_TO")
     String mapTo;
 
-    public LabHpo(int rowid, char negated, String mapTo) {
+    public LabHpo(int rowid, String negated, String mapTo) {
         this.rowid = rowid;
         this.negated = negated;
         this.mapTo = mapTo;
@@ -31,11 +31,11 @@ public class LabHpo {
         this.rowid = rowid;
     }
 
-    public char getNegated() {
+    public String getNegated() {
         return negated;
     }
 
-    public void setNegated(char negated) {
+    public void setNegated(String negated) {
         this.negated = negated;
     }
 
