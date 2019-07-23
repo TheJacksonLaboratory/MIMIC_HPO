@@ -1,7 +1,5 @@
 package org.jax.jdbc;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -38,17 +36,18 @@ public class Lab2HpoService {
 
 	@Autowired
 	private PlatformTransactionManager transactionManager;
-	
-	private final String allLabs = "select * from samplelabevents";
 
-	public void labToHpo(LabEvents2HpoFactory labConvertFactory, BufferedWriter writer) {
+	private final String allLabs = "select * from labevents";
+
+	public void labToHpo(LabEvents2HpoFactory labConvertFactory) {
 		// The fetch size will limit how many results come back at once reducing memory
 		// requirements. This is the specific recommendation for MySQL and may need to
 		// be
 		// varied for other dbs
 		jdbcTemplate.setFetchSize(Integer.MIN_VALUE);
 		initTable();
-		jdbcTemplate.query(allLabs, new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory, writer));
+		jdbcTemplate.query(allLabs,
+				new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory));
 	}
 
 	public void initTable() {
@@ -59,112 +58,55 @@ public class Lab2HpoService {
 
 	private class LabEventCallbackHandler implements RowCallbackHandler {
 
+		int batchSize = 20000;
 		JdbcTemplate jdbcTemplate;
 		TransactionTemplate transactionTemplate;
 		LabEvents2HpoFactory labConvertFactory;
-		BufferedWriter writer;
-		final String separator = ",";
-		List<LabHpo> labHpos = new ArrayList<>();
+		List<LabHpo> labHpos = new ArrayList<>(batchSize);
 
-		LabEventCallbackHandler(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager, LabEvents2HpoFactory labConvertFactory,
-				BufferedWriter writer) {
+		LabEventCallbackHandler(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager,
+				LabEvents2HpoFactory labConvertFactory) {
 			this.jdbcTemplate = jdbcTemplate;
 			this.transactionTemplate = new TransactionTemplate(transactionManager);
 			this.labConvertFactory = labConvertFactory;
-			this.writer = writer;
 		}
 
 		@Override
 		public void processRow(ResultSet rs) throws SQLException {
 
-			if (rs.isFirst()) {
-				try { // write header
-					writer.write("ROW_ID,NEGATED,MAP_TO\n");
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.exit(1);
-				}
-			}
+			LabEvent labEvent = LabEventFactory.parse(rs);
+			int rowId = labEvent.getRow_id();
+			LabHpo labHpo = null;
+
+			Optional<HpoTerm4TestOutcome> outcome = null;
 			try {
-				LabEvent labEvent = LabEventFactory.parse(rs);
-				int rowId = labEvent.getRow_id();
-				writer.write(Integer.toString(labEvent.getRow_id()));
-				writer.write(separator);
-
-				Optional<HpoTerm4TestOutcome> outcome = null;
-				try {
-					outcome = labConvertFactory.convert(labEvent);
-					boolean negated = false;
-					String mappedHpo = "?";
-					if (outcome.isPresent()) {
-						negated = outcome.get().isNegated();
-						mappedHpo = outcome.get().getId().getValue();
-					}
-					writer.write(negated ? "T" : "F");
-					writer.write(separator);
-					writer.write(mappedHpo);
-					labHpos.add(new LabHpo(rowId, negated ? "T" : "F", mappedHpo));
-				} catch (LocalLabTestNotMappedToLoinc e) {
-					writer.write("U");
-					writer.write(separator);
-					writer.write("ERROR 1: local id not mapped to loinc");
-				} catch (MalformedLoincCodeException e) {
-					writer.write("U");
-					writer.write(separator);
-					writer.write("ERROR 2: malformed loinc id");
-				} catch (LoincCodeNotAnnotatedException e) {
-					writer.write("U");
-					writer.write(separator);
-					writer.write("ERROR 3: loinc code not annotated");
-				} catch (UnrecognizedCodeException e) {
-					writer.write("U");
-					writer.write(separator);
-					writer.write("ERROR 4: interpretation code not mapped to hpo");
-				} catch (UnableToInterpretateException e) {
-					writer.write("U");
-					writer.write(separator);
-					writer.write("ERROR 5: unable to interpret");
-				} catch (UnrecognizedUnitException e) {
-					writer.write("U");
-					writer.write(separator);
-					writer.write("ERROR 6: unrecognized unit");
+				outcome = labConvertFactory.convert(labEvent);
+				boolean negated = false;
+				String mappedHpo = "?";
+				if (outcome.isPresent()) {
+					negated = outcome.get().isNegated();
+					mappedHpo = outcome.get().getId().getValue();
 				}
-
-				if (labHpos.size() > 1000 || rs.isLast()) {
-					insertBatch(labHpos);
-					labHpos.clear();
-				}
-
-				writer.write("\n");
-				// Could be more efficient about this, but we'll replace this with db insert
-				// anyway
-				writer.flush();
-// TODO: Restore this?				
-//		        if (printError) {
-//	        	for (Integer f : labConvertFactory.getFailedQnWithTextResult()) {
-//	                try {
-//	                    writer.write(Integer.toString(f));
-//	                    writer.write("\t");
-//	                    String loinc = labSummaryMap.get(f).getLoinc();
-//	                    writer.write(loinc == null ? "LOINC:[?]" : "LOINC:" + loinc);
-//	                    writer.write("\n");
-//	                } catch (IOException e) {
-//	                    e.printStackTrace();
-//	                }
-//	        	}        	
-//	        }
-
-			} catch (Exception e) {
-				e.printStackTrace();
+				labHpo = new LabHpo(rowId, negated ? "T" : "F", mappedHpo);
+			} catch (LocalLabTestNotMappedToLoinc e) {
+				labHpo = new LabHpo(rowId, "U", "ERROR 1: local id not mapped to loinc");
+			} catch (MalformedLoincCodeException e) {
+				labHpo = new LabHpo(rowId, "U", "ERROR 2: malformed loinc id");
+			} catch (LoincCodeNotAnnotatedException e) {
+				labHpo = new LabHpo(rowId, "U", "ERROR 3: loinc code not annotated");
+			} catch (UnrecognizedCodeException e) {
+				labHpo = new LabHpo(rowId, "U", "ERROR 4: interpretation code not mapped to hpo");
+			} catch (UnableToInterpretateException e) {
+				labHpo = new LabHpo(rowId, "U", "ERROR 5: unable to interpret");
+			} catch (UnrecognizedUnitException e) {
+				labHpo = new LabHpo(rowId, "U", "ERROR 6: unrecognized unit");
 			}
 
-			if (rs.isLast()) {
-				try { // Close the writer
-					writer.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.exit(1);
-				}
+			labHpos.add(labHpo);
+
+			if (labHpos.size() == batchSize || rs.isLast()) {
+				insertBatch(labHpos);
+				labHpos.clear();
 			}
 
 		}
@@ -176,24 +118,24 @@ public class Lab2HpoService {
 			transactionTemplate.execute(new TransactionCallbackWithoutResult() {
 
 				@Override
-				protected void doInTransactionWithoutResult(TransactionStatus status) {			
+				protected void doInTransactionWithoutResult(TransactionStatus status) {
 					jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
 
+						@Override
+						public void setValues(PreparedStatement ps, int i) throws SQLException {
+							LabHpo labHpo = labHpos.get(i);
+							ps.setInt(1, labHpo.getRowid());
+							ps.setString(2, labHpo.getNegated());
+							ps.setString(3, labHpo.getMapTo());
+						}
 
-					@Override
-					public void setValues(PreparedStatement ps, int i) throws SQLException {
-						LabHpo labHpo = labHpos.get(i);
-						ps.setInt(1, labHpo.getRowid());
-						ps.setString(2, labHpo.getNegated());
-						ps.setString(3, labHpo.getMapTo());
-					}
-	
-					@Override
-					public int getBatchSize() {
-						return labHpos.size();
-					}
-				});
-			}});
+						@Override
+						public int getBatchSize() {
+							return labHpos.size();
+						}
+					});
+				}
+			});
 		}
 
 	}

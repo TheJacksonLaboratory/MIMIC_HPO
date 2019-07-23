@@ -1,12 +1,13 @@
 package org.jax;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.ParameterException;
-import org.jax.command.*;
+import org.jax.command.MimicCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
 
 @Component
 public class MimicHpoCommandlineRunner implements CommandLineRunner {
@@ -19,8 +20,6 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
     MimicCommand labToHpo;
     @Autowired @Qualifier ("hpoInference")
     MimicCommand hpoInference;
-    @Autowired @Qualifier ("loadLabHpo")
-    MimicCommand loadLabHpo;
 
     /*Optional to include JCommander in Spring*/
 //    @Autowired JCommander jc;
@@ -34,7 +33,6 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
                 .addCommand("summarizeLab", summarizeLab)
                 .addCommand("lab2hpo", labToHpo)
                 .addCommand("hpoInference", hpoInference)
-                .addCommand("loadLabHpo", loadLabHpo)
                 .build();
 
         try {
@@ -70,9 +68,6 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
                 break;
             case "hpoInference":
                 mimicCommand = hpoInference;
-                break;
-            case "loadLabHpo":
-                mimicCommand = loadLabHpo;
                 break;
             default:
                     System.err.println(String.format("[ERROR] command \"%s\" not recognized",command));

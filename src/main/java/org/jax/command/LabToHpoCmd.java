@@ -1,10 +1,8 @@
 package org.jax.command;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.Map;
 
-import org.jax.io.IoUtils;
 import org.jax.io.LabSummaryParser;
 import org.jax.jdbc.Lab2HpoService;
 import org.jax.lab2hpo.LabEvents2HpoFactory;
@@ -40,9 +38,6 @@ public class LabToHpoCmd implements MimicCommand {
 
     @Parameter(names = {"-loincTable", "--loincCoreTable"}, description = "file path to loinc core table")
     String loincCoreTablePath = null;
-
-    @Parameter(names = {"-o", "--output"}, description = "Output path")
-    private String outPath;
 
     @Parameter(names = {"-error", "--error"}, description = "Print out some error messages")
     private boolean printError = false;
@@ -92,7 +87,6 @@ public class LabToHpoCmd implements MimicCommand {
                 loincEntryMap
         );
 
-        BufferedWriter writer = IoUtils.getWriter(outPath);
-        lab2HpoService.labToHpo(labConvertFactory, writer);        
+        lab2HpoService.labToHpo(labConvertFactory);        
     }
 }

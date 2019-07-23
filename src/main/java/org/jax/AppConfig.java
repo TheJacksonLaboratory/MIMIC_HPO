@@ -2,7 +2,6 @@ package org.jax;
 
 import org.jax.command.HpoInferenceCmd;
 import org.jax.command.LabToHpoCmd;
-import org.jax.command.LoadLabHpo;
 import org.jax.command.MimicCommand;
 import org.jax.command.SummarizeLabCmd;
 import org.jax.jdbc.Lab2HpoService;
@@ -28,11 +27,6 @@ public class AppConfig {
     @Bean (name = "labToHpo")
     MimicCommand labToHpo() {
         return new LabToHpoCmd(lab2HpoService);
-    }
-
-    @Bean (name = "loadLabHpo")
-    MimicCommand loadLabHpo() {
-        return new LoadLabHpo();
     }
 
     @Bean (name = "hpoInference")
