@@ -13,10 +13,12 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Parameter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -46,7 +48,13 @@ public class InferLabHpoService {
         jdbcTemplate.execute(query);
     }
 
-    public void infer(int batch_size){
+    public void infer(int batch_size) throws SQLException{
+
+        Connection conn = DataSourceUtils.getConnection(jdbcTemplate.getDataSource());
+        PreparedStatement pstmt = conn.prepareStatement("INSERT INTO INFERRED_LABHPO (LABEVENT_ROW_ID, INFERRED_TO) VALUES(?,?)");
+
+        conn.setAutoCommit(false);
+
         String query = "SELECT * FROM LabHpo WHERE ROW_ID = ?";
         String query_batch = "SELECT * FROM LabHpo WHERE ROW_ID BETWEEN ? AND ? AND NEGATED = 'F'";
         int[] range = id_range();
@@ -54,7 +62,8 @@ public class InferLabHpoService {
         int END_INDEX = range[1];
         int BATCH_SIZE = batch_size;
         int BATCH = (END_INDEX - START_INDEX + 1) / BATCH_SIZE + 1;
-        int new_table_size = 0;
+        int total_count = 0;
+        int to_commit_count = 0;
         for (int i = 0; i < BATCH; i++) {
             List<LabHpo> labHpoList = jdbcTemplate.query(query_batch, new Object[]{i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1}, new RowMapper<LabHpo>() {
                 @Override
@@ -81,7 +90,8 @@ public class InferLabHpoService {
                     }
                 }
             }
-            new_table_size += parameters.size();
+            total_count += parameters.size();
+            to_commit_count += parameters.size();
             if (i % 200000 == 0){
                 System.out.println("batch: " + i);
                 System.out.println("LabHpo list size: " + labHpoList.size());
@@ -93,26 +103,68 @@ public class InferLabHpoService {
                     System.out.println(p[0] + "\t" + p[1]);
                 });
             }
-//            jdbcTemplate.batchUpdate("INSERT INTO INFERRED_LABHPO (LABEVENT_ROW_ID, INFERRED_TO) VALUES(?,?)", parameters);
-            jdbcTemplate.batchUpdate("INSERT INTO INFERRED_LABHPO (LABEVENT_ROW_ID, INFERRED_TO) VALUES(?,?)", new BatchPreparedStatementSetter() {
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    Object[] parameter = parameters.get(i);
-                    ps.setInt(1, (Integer) parameter[0]);
-                    ps.setString(2, (String) parameter[1]);
-                }
 
-                @Override
-                public int getBatchSize() {
-                    return parameters.size();
-                }
-            });
+//            jdbcTemplate.batchUpdate("INSERT INTO INFERRED_LABHPO (LABEVENT_ROW_ID, INFERRED_TO) VALUES(?,?)", new BatchPreparedStatementSetter() {
+//                @Override
+//                public void setValues(PreparedStatement ps, int i) throws SQLException {
+//                    Object[] parameter = parameters.get(i);
+//                    ps.setInt(1, (Integer) parameter[0]);
+//                    ps.setString(2, (String) parameter[1]);
+//                }
+//
+//                @Override
+//                public int getBatchSize() {
+//                    return parameters.size();
+//                }
+//            });
+
+            for (Object[] objects : parameters){
+                pstmt.setInt(1, (Integer) objects[0]);
+                pstmt.setString(2, (String) objects[1]);
+                pstmt.executeUpdate();
+            }
+
+            if (to_commit_count > 10000){
+                conn.commit();
+                to_commit_count = 0;
+                System.out.println("total derived HPO: " + total_count);
+            }
+
+//            try {
+//                batchInsert(parameters);
+//            } catch (SQLException e) {
+//                e.printStackTrace();
+//                throw new RuntimeException("SQL insertion error");
+//            }
         }
-        System.out.println("new table size: " + new_table_size);
+
+        if (!conn.getAutoCommit()){
+            conn.commit();
+        }
+
+        conn.setAutoCommit(true);
+        System.out.println("new table size: " + total_count);
     }
 
-    public void infer(){
-        infer(100);
+    public void infer() throws SQLException{
+        infer(1000);
+    }
+
+    public void batchInsert(List<Object[]> parameters) throws SQLException {
+        Connection conn = DataSourceUtils.getConnection(jdbcTemplate.getDataSource());
+        PreparedStatement pstmt = conn.prepareStatement("INSERT INTO INFERRED_LABHPO (LABEVENT_ROW_ID, INFERRED_TO) VALUES(?,?)");
+
+        conn.setAutoCommit(false);
+
+        for (Object[] objects : parameters){
+            pstmt.setInt(1, (Integer) objects[0]);
+            pstmt.setString(2, (String) objects[1]);
+            pstmt.executeUpdate();
+        }
+
+        conn.setAutoCommit(true);
+
+
     }
 
 }

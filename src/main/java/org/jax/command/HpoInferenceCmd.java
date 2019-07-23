@@ -6,6 +6,8 @@ import org.jax.service.HpoService;
 import org.jax.service.InferLabHpoService;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.sql.SQLException;
+
 /**
  * Infer additional terms based on HPO hierarchy
  */
@@ -37,6 +39,10 @@ public class HpoInferenceCmd implements MimicCommand {
         int[] id_range = inferLabHpoService.id_range();
         System.out.println(String.format("min = %d; max = %d", id_range[0], id_range[1]));
         inferLabHpoService.initTable();
-        inferLabHpoService.infer();
+        try {
+            inferLabHpoService.infer();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
