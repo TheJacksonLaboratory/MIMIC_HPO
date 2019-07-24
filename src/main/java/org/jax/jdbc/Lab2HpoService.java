@@ -45,8 +45,7 @@ public class Lab2HpoService {
 	public void labToHpo(LabEvents2HpoFactory labConvertFactory) {
 		// The fetch size will limit how many results come back at once reducing memory
 		// requirements. This is the specific recommendation for MySQL and may need to
-		// be
-		// varied for other dbs
+		// be varied for other dbs
 		jdbcTemplate.setFetchSize(Integer.MIN_VALUE);
 		initTable();
 		try {
@@ -61,7 +60,7 @@ public class Lab2HpoService {
 	}
 
 	public void initTable() {
-		String query = "CREATE TABLE IF NOT EXISTS LABHPO (ROW_ID INT UNSIGNED NOT NULL AUTO_INCREMENT, NEGATED VARCHAR(5), MAP_TO VARCHAR(255), PRIMARY KEY (ROW_ID));";
+		String query = "CREATE TABLE IF NOT EXISTS LABHPO (ROW_ID INT UNSIGNED NOT NULL, NEGATED VARCHAR(5), MAP_TO VARCHAR(255), PRIMARY KEY (ROW_ID));";
 		jdbcTemplate.execute(query);
 		jdbcTemplate.execute("TRUNCATE LABHPO;");
 	}
