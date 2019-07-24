@@ -40,7 +40,8 @@ public class Lab2HpoService {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
-	private final String allLabs = "select * from labevents";
+	private final String maxRowIdQuery = "select max(row_id) from labevents";
+	private final String allLabsQuery = "select * from labevents";
 
 	public void labToHpo(LabEvents2HpoFactory labConvertFactory) {
 		// The fetch size will limit how many results come back at once reducing memory
@@ -55,8 +56,9 @@ public class Lab2HpoService {
 			//TODO: warn user
 			return;
 		}
-		jdbcTemplate.query(allLabs,
-				new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory));
+		Integer maxRowId = jdbcTemplate.queryForObject(maxRowIdQuery, null, Integer.class);
+		jdbcTemplate.query(allLabsQuery,
+				new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory, maxRowId));
 	}
 
 	public void initTable() {
@@ -76,13 +78,15 @@ public class Lab2HpoService {
 		JdbcTemplate jdbcTemplate;
 		TransactionTemplate transactionTemplate;
 		LabEvents2HpoFactory labConvertFactory;
+		Integer maxRowId;
 		List<LabHpo> labHpos = new ArrayList<>(batchSize);
 
 		LabEventCallbackHandler(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager,
-				LabEvents2HpoFactory labConvertFactory) {
+				LabEvents2HpoFactory labConvertFactory, Integer maxRowId) {
 			this.jdbcTemplate = jdbcTemplate;
 			this.transactionTemplate = new TransactionTemplate(transactionManager);
 			this.labConvertFactory = labConvertFactory;
+			this.maxRowId = maxRowId;
 		}
 
 		@Override
@@ -124,8 +128,8 @@ public class Lab2HpoService {
 			}
 
 			labHpos.add(labHpo);
-
-			if (labHpos.size() == batchSize || rs.isLast()) {
+			
+			if (labHpos.size() == batchSize || maxRowId.equals(rowId)) {
 				insertBatch(labHpos);
 				labHpos.clear();
 			}
