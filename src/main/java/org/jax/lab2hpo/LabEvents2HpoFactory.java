@@ -1,5 +1,6 @@
 package org.jax.lab2hpo;
 
+import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.jax.Entity.LabEvent;
 import org.jax.service.LocalLabTestNotMappedToLoinc;
@@ -26,8 +27,6 @@ public class LabEvents2HpoFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(LabEvents2HpoFactory.class);
 
-    // local lab test codes to LOINC mapping
-    private Map<Integer, String> local2LoincMap;
     // normal range for quantitative lab tests, key is the local lab test code
     private Map<Integer, LabSummary> labSummaryMap;
     // Loinc2Hpo annotations
@@ -40,11 +39,9 @@ public class LabEvents2HpoFactory {
     private Set<LoincId> qnNoLow = new HashSet<>();
     private Set<LoincId> qnNoHigh = new HashSet<>();
 
-    public LabEvents2HpoFactory(Map<Integer, String> local2LoincMap,
-                                Map<Integer, LabSummary> labSummaryMap,
+    public LabEvents2HpoFactory(Map<Integer, LabSummary> labSummaryMap,
                                 Map<LoincId, LOINC2HpoAnnotationImpl> annotationMap,
                                 Map<LoincId, LoincEntry> loincEntryMap) {
-        this.local2LoincMap = local2LoincMap;
         this.labSummaryMap = labSummaryMap;
         this.annotationMap = annotationMap;
         this.loincEntryMap = loincEntryMap;
@@ -71,29 +68,29 @@ public class LabEvents2HpoFactory {
     }
 
     public Optional<HpoTerm4TestOutcome> convert(LabEvent labEvent) throws LocalLabTestNotMappedToLoinc, MalformedLoincCodeException, LoincCodeNotAnnotatedException, UnrecognizedUnitException, UnableToInterpretateException, UnrecognizedCodeException {
-        LoincId loincId = null;
 
-        // check if local lab test code is mapped to loinc
-        int item_id = labEvent.getItem_id();
-        if (! local2LoincMap.containsKey(item_id)) {
+
+//        logger.info("annotation map contains " + loincId.toString());
+//        logger.info("annotation map for " + loincId.toString() + "candidate mappings: " + annotationMap.get(loincId).getCandidateHpoTerms().size());
+    	int item_id = labEvent.getItem_id();
+        LabSummary labSummary = labSummaryMap.get(item_id);
+        
+        String loinc = labSummary.getLoinc();
+        
+        if (StringUtils.isBlank(loinc)) {
             logger.warn("cannot map local item_id to loinc: " + item_id);
             throw new LocalLabTestNotMappedToLoinc();
         }
 
         //throws MalformedLoincCodeException
-        loincId = new LoincId(local2LoincMap.get(item_id));
-
+        LoincId loincId = new LoincId(loinc);
 
         //check whether the loinc is annotated
         if (!annotationMap.containsKey(loincId)) {
             throw new LoincCodeNotAnnotatedException();
         }
-//        logger.info("annotation map contains " + loincId.toString());
-//        logger.info("annotation map for " + loincId.toString() + "candidate mappings: " + annotationMap.get(loincId).getCandidateHpoTerms().size());
 
         String loincScale = loincEntryMap.get(loincId).getScale();
-        LabSummary labSummary = labSummaryMap.get(item_id);
-
 
         // placeholder of interpretation code
         String code = null;

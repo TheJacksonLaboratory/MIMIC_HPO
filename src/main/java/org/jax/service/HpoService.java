@@ -1,17 +1,18 @@
 package org.jax.service;
 
+import java.io.File;
+import java.util.Set;
+
 import org.monarchinitiative.phenol.io.OntologyLoader;
 import org.monarchinitiative.phenol.ontology.algo.OntologyAlgorithm;
 import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
-
-import javax.annotation.PostConstruct;
-import java.io.File;
-import java.util.Set;
+import org.springframework.stereotype.Service;
 
 /**
  * Hpo related service
  */
+@Service
 public class HpoService {
 
     private String hpoOboPath;

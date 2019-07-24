@@ -1,30 +1,22 @@
 package org.jax.command;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import org.jax.Entity.LabDictItem;
-import org.jax.Entity.LabEvent;
-import org.jax.lab2hpo.LabSummary;
-import org.jax.io.*;
+import java.io.IOException;
+import java.util.Map;
+
+import org.jax.io.LabSummaryParser;
+import org.jax.jdbc.Lab2HpoService;
 import org.jax.lab2hpo.LabEvents2HpoFactory;
-import org.jax.lab2hpo.UnableToInterpretateException;
-import org.jax.lab2hpo.UnrecognizedUnitException;
-import org.jax.service.LocalLabTestNotMappedToLoinc;
-import org.monarchinitiative.loinc2hpo.exception.LoincCodeNotAnnotatedException;
-import org.monarchinitiative.loinc2hpo.exception.MalformedLoincCodeException;
-import org.monarchinitiative.loinc2hpo.exception.UnrecognizedCodeException;
+import org.jax.lab2hpo.LabSummary;
 import org.monarchinitiative.loinc2hpo.io.LoincAnnotationSerializationFactory;
-import org.monarchinitiative.loinc2hpo.loinc.HpoTerm4TestOutcome;
 import org.monarchinitiative.loinc2hpo.loinc.LOINC2HpoAnnotationImpl;
 import org.monarchinitiative.loinc2hpo.loinc.LoincEntry;
 import org.monarchinitiative.loinc2hpo.loinc.LoincId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.io.*;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 
 /**
  * Class to convert laboratory tests into HPO terms
@@ -33,6 +25,9 @@ import java.util.stream.Collectors;
 public class LabToHpoCmd implements MimicCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(LabToHpoCmd.class);
+    
+    @Autowired
+    private Lab2HpoService lab2HpoService;
 
     @Parameter(names = {"-lab", "--lab_events"}, description = "file path to LABEVENTS.csv")
     private String labEventsPath;
@@ -46,13 +41,10 @@ public class LabToHpoCmd implements MimicCommand {
     @Parameter(names = {"-loincTable", "--loincCoreTable"}, description = "file path to loinc core table")
     String loincCoreTablePath = null;
 
-    @Parameter(names = {"-o", "--output"}, description = "Output path")
-    private String outPath;
-
     @Parameter(names = {"-error", "--error"}, description = "Print out some error messages")
     private boolean printError = false;
 
-    @Override
+	@Override
     public void run() {
 
         LabSummaryParser labSummaryparser = new LabSummaryParser(labSummaryPath);
@@ -61,24 +53,8 @@ public class LabToHpoCmd implements MimicCommand {
             labSummaryMap = labSummaryparser.parse();
         } catch (IOException e) {
             e.printStackTrace();
-        }
-
-        //get the local lab test code to loinc mapping
-        String labDictPath = this.getClass().getClassLoader().getResource("D_LABITEMS.csv").getPath();
-        LabDictParser labDictParser = new LabDictParser(labDictPath);
-        Map<Integer, LabDictItem> labDictMap = null;
-        try {
-            labDictMap = labDictParser.parse();
-        } catch (IOException e) {
-            logger.error("local to loinc mapping failed loading. Exiting...");
-            e.printStackTrace();
             System.exit(1);
         }
-        Map<Integer, String> local2loinc = labDictMap.values().stream()
-                .filter(labDictItem -> ! labDictItem.getLoincCode().isEmpty()) // some are not mapped to loinc
-                .collect(
-                Collectors.toMap(LabDictItem::getItemId, LabDictItem::getLoincCode));
-        logger.info("local to loinc mapping successfully loaded");
 
         Map<LoincId, LOINC2HpoAnnotationImpl> annotationMap = null;
         try {
@@ -104,114 +80,11 @@ public class LabToHpoCmd implements MimicCommand {
 
         //start processing
         LabEvents2HpoFactory labConvertFactory = new LabEvents2HpoFactory(
-                local2loinc,
                 labSummaryMap,
                 annotationMap,
                 loincEntryMap
         );
 
-        BufferedWriter writer = IoUtils.getWriter(outPath);
-        try { // write header
-            writer.write("ROW_ID,NEGATED,MAP_TO\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-        int count = 0;
-        try (BufferedReader reader = new BufferedReader(new FileReader(labEventsPath))){
-            String line = reader.readLine();
-            while ((line = reader.readLine()) != null) {
-                count++;
-                if (count % 1000000 == 0) {
-                    logger.info("total lines processed: " + count);
-                }
-                try {
-                    LabEvent labEvent = LabEventFactory.parse(line);
-
-                    final String separator = ",";
-                    writer.write(Integer.toString(labEvent.getRow_id()));
-                    writer.write(separator);
-                    //writer.write(Integer.toString(labEvent.getItem_id()));
-                    //writer.write(separator);
-                    //writer.write(labEvent.getValue());
-                    //writer.write(separator);
-                    //writer.write(labEvent.getFlag());
-                    //writer.write(separator);
-
-
-                    Optional<HpoTerm4TestOutcome> outcome = null;
-                    try {
-                        outcome = labConvertFactory.convert(labEvent);
-                        boolean negated = false;
-                        String mappedHpo = "?";
-                        if (outcome.isPresent()) {
-                            negated = outcome.get().isNegated();
-                            mappedHpo = outcome.get().getId().getValue();
-                        }
-                        writer.write(negated ? "T" : "F");
-                        writer.write(separator);
-                        writer.write(mappedHpo);
-                    } catch (LocalLabTestNotMappedToLoinc e) {
-                        writer.write("U");
-                        writer.write(separator);
-                        writer.write("ERROR 1: local id not mapped to loinc");
-                    } catch (MalformedLoincCodeException e) {
-                        writer.write("U");
-                        writer.write(separator);
-                        writer.write("ERROR 2: malformed loinc id");
-                    } catch (LoincCodeNotAnnotatedException e) {
-                        writer.write("U");
-                        writer.write(separator);
-                        writer.write("ERROR 3: loinc code not annotated");
-                    } catch (UnrecognizedCodeException e) {
-                        writer.write("U");
-                        writer.write(separator);
-                        writer.write("ERROR 4: interpretation code not mapped to hpo");
-                    } catch (UnableToInterpretateException e) {
-                        writer.write("U");
-                        writer.write(separator);
-                        writer.write("ERROR 5: unable to interpret");
-                    } catch (UnrecognizedUnitException e) {
-                        writer.write("U");
-                        writer.write(separator);
-                        writer.write("ERROR 6: unrecognized unit");
-                    }
-
-                    writer.write("\n");
-                } catch (MimicHpoException e) {
-                    logger.error("parsing error: " + line);
-                }
-
-                //debug with 10 records
-                if (count > Integer.MAX_VALUE) {
-                    break;
-                }
-            }
-
-        } catch (FileNotFoundException e){
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        if (printError) {
-            labConvertFactory.getFailedQnWithTextResult().forEach(f -> {
-                try {
-                    writer.write(Integer.toString(f));
-                    writer.write("\t");
-                    String loinc = local2loinc.get(f);
-                    writer.write(loinc == null ? "LOINC:[?]" : "LOINC:" + loinc);
-                    writer.write("\n");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
-
-        try {
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        lab2HpoService.labToHpo(labConvertFactory);
     }
 }

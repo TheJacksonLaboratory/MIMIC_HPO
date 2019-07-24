@@ -3,7 +3,7 @@ package org.jax.Entity;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "Infferred_LabHpo")
+@Table(name = "Inferred_LabHpo")
 public class InferredLabHpo {
     @Id
     @GeneratedValue

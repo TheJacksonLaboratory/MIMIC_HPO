@@ -1,10 +1,9 @@
 package org.jax.lab2hpo;
 
-import javax.annotation.Nullable;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
+
+import javax.annotation.Nullable;
 
 /**
  * Summaries of quantitative lab events
@@ -12,13 +11,15 @@ import java.util.Optional;
 public class LabSummary {
 
     private int id; //local lab test id
+    private String loinc; //the associated loinc
     private Map<String, Double> meanByUnit;
     private Map<String, Integer> countByUnit;
     private Map<String, NormalRange> normalRangeByUnit;
 
 
-    public LabSummary(int id){
+    public LabSummary(int id, String loinc){
         this.id = id;
+        this.loinc = loinc;
         this.meanByUnit = new HashMap<>();
         this.countByUnit = new HashMap<>();
         this.normalRangeByUnit = new HashMap<>();
@@ -47,7 +48,7 @@ public class LabSummary {
      * @param min_normal a null value means that a min value for normal finding could not be established
      * @param max_normal a null value means that a max value for normal finding could not be established
      */
-    public void put(String unit, int count, double mean, @Nullable Double min_normal, @Nullable
+    public void put(String unit, int count, @Nullable Double mean, @Nullable Double min_normal, @Nullable
             Double max_normal) {
         this.countByUnit.put(unit, count);
         this.meanByUnit.put(unit, mean);
@@ -58,6 +59,10 @@ public class LabSummary {
 
     public int getId() {
         return id;
+    }
+    
+    public String getLoinc() {
+    	return loinc;
     }
 
     public Map<String, Double> getMeanByUnit() {
