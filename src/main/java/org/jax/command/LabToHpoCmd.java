@@ -1,6 +1,7 @@
 package org.jax.command;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Map;
 
 import org.jax.io.LabSummaryParser;
@@ -87,6 +88,6 @@ public class LabToHpoCmd implements MimicCommand {
                 loincEntryMap
         );
 
-        lab2HpoService.labToHpo(labConvertFactory);        
+        lab2HpoService.labToHpo(labConvertFactory);
     }
 }
