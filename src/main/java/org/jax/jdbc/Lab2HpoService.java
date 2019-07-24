@@ -19,9 +19,12 @@ import org.monarchinitiative.loinc2hpo.exception.MalformedLoincCodeException;
 import org.monarchinitiative.loinc2hpo.exception.UnrecognizedCodeException;
 import org.monarchinitiative.loinc2hpo.loinc.HpoTerm4TestOutcome;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
@@ -46,6 +49,13 @@ public class Lab2HpoService {
 		// varied for other dbs
 		jdbcTemplate.setFetchSize(Integer.MIN_VALUE);
 		initTable();
+		try {
+			initErrorTable();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			//TODO: warn user
+			return;
+		}
 		jdbcTemplate.query(allLabs,
 				new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory));
 	}
@@ -54,6 +64,11 @@ public class Lab2HpoService {
 		String query = "CREATE TABLE IF NOT EXISTS LABHPO (ROW_ID INT UNSIGNED NOT NULL AUTO_INCREMENT, NEGATED VARCHAR(5), MAP_TO VARCHAR(255), PRIMARY KEY (ROW_ID));";
 		jdbcTemplate.execute(query);
 		jdbcTemplate.execute("TRUNCATE LABHPO;");
+	}
+
+	public void initErrorTable() throws SQLException {
+		EncodedResource script = new EncodedResource(new ClassPathResource("sql/errortable.sql"));
+		ScriptUtils.executeSqlScript(jdbcTemplate.getDataSource().getConnection(), script);
 	}
 
 	private class LabEventCallbackHandler implements RowCallbackHandler {
@@ -89,17 +104,24 @@ public class Lab2HpoService {
 				}
 				labHpo = new LabHpo(rowId, negated ? "T" : "F", mappedHpo);
 			} catch (LocalLabTestNotMappedToLoinc e) {
-				labHpo = new LabHpo(rowId, "U", "ERROR 1: local id not mapped to loinc");
+				//ERROR 1: local id not mapped to loinc
+				//Look up the D_LAB2HPO_MAP_ERR table for error code
+				labHpo = new LabHpo(rowId, "U", "ERROR1");
 			} catch (MalformedLoincCodeException e) {
-				labHpo = new LabHpo(rowId, "U", "ERROR 2: malformed loinc id");
+				//ERROR 2: malformed loinc id
+				labHpo = new LabHpo(rowId, "U", "ERROR2");
 			} catch (LoincCodeNotAnnotatedException e) {
-				labHpo = new LabHpo(rowId, "U", "ERROR 3: loinc code not annotated");
+				//ERROR 3: loinc code not annotated
+				labHpo = new LabHpo(rowId, "U", "ERROR3");
 			} catch (UnrecognizedCodeException e) {
-				labHpo = new LabHpo(rowId, "U", "ERROR 4: interpretation code not mapped to hpo");
+				//ERROR 4: interpretation code not mapped to hpo
+				labHpo = new LabHpo(rowId, "U", "ERROR4");
 			} catch (UnableToInterpretateException e) {
-				labHpo = new LabHpo(rowId, "U", "ERROR 5: unable to interpret");
+				//ERROR 5: unable to interpret
+				labHpo = new LabHpo(rowId, "U", "ERROR5");
 			} catch (UnrecognizedUnitException e) {
-				labHpo = new LabHpo(rowId, "U", "ERROR 6: unrecognized unit");
+				//ERROR 6: unrecognized unit
+				labHpo = new LabHpo(rowId, "U", "ERROR6");
 			}
 
 			labHpos.add(labHpo);
