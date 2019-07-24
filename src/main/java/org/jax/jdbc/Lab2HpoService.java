@@ -40,7 +40,7 @@ public class Lab2HpoService {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
-	private final String allLabs = "select * from samplelabevents";
+	private final String allLabs = "select * from labevents";
 
 	public void labToHpo(LabEvents2HpoFactory labConvertFactory) {
 		// The fetch size will limit how many results come back at once reducing memory

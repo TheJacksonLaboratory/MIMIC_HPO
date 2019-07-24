@@ -44,7 +44,7 @@ public class LabToHpoCmd implements MimicCommand {
     @Parameter(names = {"-error", "--error"}, description = "Print out some error messages")
     private boolean printError = false;
 
-	@Override
+    @Override
     public void run() {
 
         LabSummaryParser labSummaryparser = new LabSummaryParser(labSummaryPath);
