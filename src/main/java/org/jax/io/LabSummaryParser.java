@@ -26,11 +26,12 @@ public class LabSummaryParser {
             String[] elements = line.split("\t");
             int itemId = Integer.valueOf(elements[0]);
             String unit = elements[1];
-            int count = Integer.valueOf(elements[2]);
-            double mean = Double.valueOf(elements[3]);
-            Double min_normal = elements[4].equals("NULL") ? null : Double.valueOf(elements[4]);
-            Double max_normal = elements[6].equals("NULL") ? null : Double.valueOf(elements[6]);
-            labSummaryMap.putIfAbsent(itemId, new LabSummary(itemId));
+            String loinc = elements[2];
+            int count = Integer.valueOf(elements[3]);
+            Double mean = elements[4].equalsIgnoreCase("NULL") ? null : Double.valueOf(elements[4]);
+            Double min_normal = elements[5].equalsIgnoreCase("NULL") ? null : Double.valueOf(elements[5]);
+            Double max_normal = elements[7].equalsIgnoreCase("NULL") ? null : Double.valueOf(elements[7]);
+            labSummaryMap.putIfAbsent(itemId, new LabSummary(itemId, loinc));
             labSummaryMap.get(itemId).put(unit, count, mean, min_normal, max_normal);
         }
 
