@@ -57,7 +57,8 @@ public class QnLabSummarizeFileImpl implements QnLabSummarize {
                 if (unit.isEmpty()) {
                     unit = "?"; //replace empty unit with "?"
                 }
-                labSummaryMap.putIfAbsent(itemId, new LabSummary(itemId));
+                // The old file did not contain LOINC info - pass null
+                labSummaryMap.putIfAbsent(itemId, new LabSummary(itemId, null));
                 labSummaryMap.get(itemId).add(unit, valueNum);
             } catch (Exception e) {
                 logger.warn("string to double conversion error (line skipped): " + line);
