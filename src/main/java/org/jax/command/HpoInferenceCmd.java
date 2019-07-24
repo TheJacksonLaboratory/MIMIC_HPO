@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.sql.SQLException;
 
 /**
- * Infer additional terms based on HPO hierarchy
+ * Infer additional terms based on HPO hierarchy, and write the inferred HPO into a separate table.
  */
 @Parameters(commandDescription = "Infer parent HPO terms based on abnormalities indicated by children terms")
 public class HpoInferenceCmd implements MimicCommand {
@@ -28,16 +28,10 @@ public class HpoInferenceCmd implements MimicCommand {
 
         System.out.println(hpoPath);
 
+        //TODO: how to inject hpoPath to hpoService and let it init automatically. Alternatively, we probably should package hp.obo and loinc2hpoAnnotation.txt in our software or add a url download function. It would be easier to control versions and simplify the use.
         hpoService.setHpoOboPath(hpoPath);
         hpoService.init();
 
-        System.out.println("hpoService is null: " + (hpoService==null));
-        System.out.println("number of terms: " + hpoService.hpo().getTermMap().size());
-
-        System.out.println("inferLabHpoService is null: " + (inferLabHpoService ==null));
-
-        int[] id_range = inferLabHpoService.id_range();
-        System.out.println(String.format("min = %d; max = %d", id_range[0], id_range[1]));
         inferLabHpoService.initTable();
         try {
             inferLabHpoService.infer();
