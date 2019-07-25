@@ -2,6 +2,7 @@ package org.jax.service;
 
 import org.jax.Entity.InferredLabHpo;
 import org.jax.Entity.LabHpo;
+import org.jax.util.DatabaseIndexLookUpUtil;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,13 +11,11 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -58,96 +57,10 @@ public class InferLabHpoService {
     public void initTable(){
         String query = "CREATE TABLE IF NOT EXISTS INFERRED_LABHPO (ROW_ID INT UNSIGNED NOT NULL AUTO_INCREMENT, LABEVENT_ROW_ID INT UNSIGNED NOT NULL, INFERRED_TO VARCHAR(12), PRIMARY KEY (ROW_ID))";
         jdbcTemplate.execute(query);
+        jdbcTemplate.execute("TRUNCATE TABLE INFERRED_LABHPO");
     }
 
-    public void infer(int batch_size) throws SQLException{
-
-        if (isLabHpoEmpty()){
-            return;
-        }
-
-        Connection conn = DataSourceUtils.getConnection(jdbcTemplate.getDataSource());
-        PreparedStatement pstmt = conn.prepareStatement("INSERT INTO INFERRED_LABHPO (LABEVENT_ROW_ID, INFERRED_TO) VALUES(?,?)");
-
-        conn.setAutoCommit(false);
-
-        String query_batch = "SELECT * FROM LabHpo WHERE ROW_ID BETWEEN ? AND ? AND NEGATED = 'F'";
-        int[] range = id_range();
-        int START_INDEX = range[0];
-        int END_INDEX = range[1];
-        int BATCH_SIZE = batch_size;
-        int TOTAL_BATCHES = (END_INDEX - START_INDEX + 1) / BATCH_SIZE + 1;
-        int total_count = 0;
-        int to_commit_count = 0;
-        for (int i = 0; i < TOTAL_BATCHES; i++) {
-            List<LabHpo> labHpoList = jdbcTemplate.query(query_batch, new Object[]{i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1}, new RowMapper<LabHpo>() {
-                @Override
-                public LabHpo mapRow(ResultSet rs, int rowNum) throws SQLException {
-                    LabHpo labHpo = new LabHpo(rs.getInt("ROW_ID"),
-                            rs.getString("NEGATED"),
-                            rs.getString("MAP_TO"));
-                    return labHpo;
-                }
-            });
-
-            List<Object[]> parameters = new ArrayList<>();
-            for (LabHpo instance : labHpoList){
-                if (instance.getMapTo().startsWith("HP:")) {
-                    int labevent_row_id = instance.getRowid();
-                    TermId termId = TermId.of(instance.getMapTo());
-                    Set<TermId> parents = hpoService.infer(termId, false);
-                    for (TermId parent : parents) {
-                        Object[] values = new Object[]{
-                                labevent_row_id, //ROW_ID from LabEvents
-                                parent.getValue() //parent HPO term id
-                        };
-                        parameters.add(values);
-                    }
-                }
-            }
-            total_count += parameters.size();
-            to_commit_count += parameters.size();
-
-            if (i % 100000 == 0){
-                logger.info("batch: " + i);
-                logger.info("LabHpo list size: " + labHpoList.size());
-                labHpoList.forEach(labhpo -> {
-                    logger.info(labhpo.getRowid() + "\t" + labhpo.getNegated() + "\t" + labhpo.getMapTo());
-                });
-                logger.info("batch update size: " + parameters.size());
-                parameters.forEach(p -> {
-                    logger.info(p[0] + "\t" + p[1]);
-                });
-            }
-
-
-            for (Object[] objects : parameters){
-                pstmt.setInt(1, (Integer) objects[0]);
-                pstmt.setString(2, (String) objects[1]);
-                pstmt.executeUpdate();
-            }
-
-            if (to_commit_count > 10000){
-                conn.commit();
-                to_commit_count = 0;
-                System.out.println("total derived HPO: " + total_count);
-            }
-
-        }
-
-        if (!conn.getAutoCommit()){
-            conn.commit();
-        }
-
-        conn.setAutoCommit(true);
-        logger.info("new table size: " + total_count);
-    }
-
-    public void infer() throws SQLException{
-        infer(1000);
-    }
-
-    public void infer2(int batch_size){
+    public void infer(int batch_size){
 
         if(isLabHpoEmpty()){
             return;
@@ -214,6 +127,13 @@ public class InferLabHpoService {
                 });
             }
         });
+    }
+
+    public void createIndexOnForeignKey(){
+        boolean exists = DatabaseIndexLookUpUtil.indexExists("Inferred_LabHpo", "Inferred_LabHpo_idx01", jdbcTemplate);
+        if (!exists){
+            jdbcTemplate.execute("CREATE INDEX Inferred_LabHpo_idx01 ON INFERRED_LABHPO (LABEVENT_ROW_ID);");
+        }
     }
 
 }

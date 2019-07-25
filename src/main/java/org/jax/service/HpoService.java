@@ -9,6 +9,8 @@ import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+
 /**
  * Hpo related service
  */
@@ -28,9 +30,13 @@ public class HpoService {
         this.hpoOboPath = hpoOboPath;
     }
 
-    //@PostConstruct
+    @PostConstruct
     public void init(){
-        this.ontology = OntologyLoader.loadOntology(new File(this.hpoOboPath));
+
+        if (this.hpoOboPath != null) {
+            this.ontology = OntologyLoader.loadOntology(new File(this.hpoOboPath));
+        }
+
     }
 
     public Ontology hpo(){
