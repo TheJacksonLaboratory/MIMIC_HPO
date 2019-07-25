@@ -84,7 +84,7 @@ public class InferLabHpoService {
                 @Override
                 public LabHpo mapRow(ResultSet rs, int rowNum) throws SQLException {
                     LabHpo labHpo = new LabHpo(rs.getInt("ROW_ID"),
-                            rs.getString("NEGATED").charAt(0),
+                            rs.getString("NEGATED"),
                             rs.getString("MAP_TO"));
                     return labHpo;
                 }
@@ -165,7 +165,7 @@ public class InferLabHpoService {
                 @Override
                 public LabHpo mapRow(ResultSet rs, int rowNum) throws SQLException {
                     LabHpo labHpo = new LabHpo(rs.getInt("ROW_ID"),
-                            rs.getString("NEGATED").charAt(0),
+                            rs.getString("NEGATED"),
                             rs.getString("MAP_TO"));
                     return labHpo;
                 }

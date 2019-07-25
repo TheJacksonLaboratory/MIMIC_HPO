@@ -9,6 +9,7 @@ import org.jax.jdbc.LabSummaryService;
 import org.jax.lab2hpo.LabSummaryStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -36,14 +37,11 @@ public class SummarizeLabCmd implements MimicCommand {
 	
     private static final Logger logger = LoggerFactory.getLogger(SummarizeLabCmd.class);
 
+    @Autowired
     private LabSummaryService labSummaryService;
 
     @Parameter(names = {"-o", "--output"}, description = "Output path")
     private String outPath;
-
-    public SummarizeLabCmd(LabSummaryService labSummaryService) {
-		this.labSummaryService = labSummaryService;
-	}
 
 	@Override
     public void run() {
