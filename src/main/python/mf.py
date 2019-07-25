@@ -332,8 +332,6 @@ def synergy(I, II):
     :param d: a vector representing patient diagnosis
     :return: a matrix of pairwise synergy
     """
-
-
     M = len(I)
     assert M == II.shape[0]
     S = II - I.reshape([M, 1]) - I.reshape([1, M])

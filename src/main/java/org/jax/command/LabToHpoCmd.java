@@ -1,7 +1,6 @@
 package org.jax.command;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Map;
 
 import org.jax.io.LabSummaryParser;
@@ -14,6 +13,7 @@ import org.monarchinitiative.loinc2hpo.loinc.LoincEntry;
 import org.monarchinitiative.loinc2hpo.loinc.LoincId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -26,6 +26,7 @@ public class LabToHpoCmd implements MimicCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(LabToHpoCmd.class);
     
+    @Autowired
     private Lab2HpoService lab2HpoService;
 
     @Parameter(names = {"-lab", "--lab_events"}, description = "file path to LABEVENTS.csv")
@@ -43,11 +44,7 @@ public class LabToHpoCmd implements MimicCommand {
     @Parameter(names = {"-error", "--error"}, description = "Print out some error messages")
     private boolean printError = false;
 
-    public LabToHpoCmd(Lab2HpoService lab2HpoService) {
-		this.lab2HpoService = lab2HpoService;
-	}
-
-	@Override
+    @Override
     public void run() {
 
         LabSummaryParser labSummaryparser = new LabSummaryParser(labSummaryPath);
