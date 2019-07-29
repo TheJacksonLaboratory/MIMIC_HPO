@@ -2,6 +2,7 @@ import unittest
 import src.main.python.mf as mf
 import numpy as np
 import math
+import tempfile
 
 
 class TestMF(unittest.TestCase):
@@ -17,6 +18,7 @@ class TestMF(unittest.TestCase):
                            [1,1,0,0],
                            [1,0,0,1],
                            [0,1,1,0]])
+        self.tempdir = tempfile.mkdtemp()
 
 
     def test_summarize_diagnosis(self):
@@ -130,59 +132,6 @@ class TestMF(unittest.TestCase):
         synergies['heart failure'].add_batch(self.P, self.d)
         #print(synergies['heart failure'].pairwise_synergy())
         heart_failure.__getattribute__('m1')
-
-    def test_matrix_searchsorted(self):
-        ordered = np.arange(24).reshape([2,3,4])
-        query = np.array([[-1, 4, 8.5],[13.5, 19, 24]])
-        idx = mf.matrix_searchsorted(ordered, query)
-        expected = [[0, 0, 1],
-                    [2, 3, 4]]
-        self.assertEqual(idx.tolist(), expected)
-
-    def test_create_empirical_distribution(self):
-        diag_prob = np.array([0.3, 0.7])
-        phenotype_prob = np.random.uniform(0, 1, 10)
-        sample_per_simulation = 500
-        simulations = 100
-        distribution = mf.create_empirical_distribution(diag_prob,
-                                                       phenotype_prob,
-        sample_per_simulation, simulations)
-        self.assertEqual(list(distribution.shape), [10, 10, 100])
-
-    def test_p_value_estimate(self):
-        ordered = np.arange(24).reshape([2, 3, 4])
-        query = np.array([[-1, 4, 8.5], [13.5, 19, 24]])
-        idx = mf.p_value_estimate(query, ordered, alternative='two.sided')
-        expected = [[0, 0.5, 0.5],
-                    [1, 0.5, 0]]
-        self.assertEqual(idx.tolist(), expected, 'two.sided p value estimate '
-                                                 'failed')
-
-        idx = mf.p_value_estimate(query, ordered, alternative='left')
-        expected = [[0, 0.25, 0.25],
-                    [0.5, 1, 1]]
-        self.assertEqual(idx.tolist(), expected, 'left sided p value estimate '
-                                                 'failed')
-
-        idx = mf.p_value_estimate(query, ordered, alternative='right')
-        expected = [[1, 1, 0.75],
-                    [0.5, 0.25, 0]]
-        self.assertEqual(idx.tolist(), expected, 'right sided p value estimate '
-                                                 'failed')
-
-        self.assertRaises(ValueError, lambda: mf.p_value_estimate(query,
-                                     ordered, alternative='e'))
-
-    def test_synergy_random(self):
-        diag_prob = [0.4, 0.6]
-        phenotype_prob = np.random.uniform(0, 1, 10)
-        sample_per_simulation = 5000
-        S = mf.synergy_random(diag_prob, phenotype_prob, sample_per_simulation)
-        # self.assertAlmostEqual(S.astype(np.float32).all(),
-        #                        np.zeros(S.shape).astype(np.float32).all(),
-        #                        delta=0.001)
-        self.assertAlmostEqual(S[0,0], 0.0, delta=0.001)
-        self.assertAlmostEqual(S[5,5], 0.0, delta=0.001)
 
 
 if __name__ == '__main__':

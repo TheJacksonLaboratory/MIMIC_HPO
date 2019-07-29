@@ -12,4 +12,5 @@ src/main/resources/result.txt
 .settings
 docker_data
 src/main/python/__pycache__/
+*.obj
 *.npy
