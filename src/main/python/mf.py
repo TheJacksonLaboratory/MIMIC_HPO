@@ -318,7 +318,12 @@ def mf_diagnosis_phenotype(m1, case_N, control_N):
                             np.repeat(prob_diag, M),
                             np.repeat(1 - prob_diag, M)], axis=1)
     prob_pheno_M = np.stack([prob_pheno, prob_pheno, 1 - prob_pheno, 1 - prob_pheno], axis=1)
-    I = np.sum(prob * np.log2(prob / (prob_diag_M * prob_pheno_M)), axis=1)
+    # prob could be 0
+    non_zero_idx = np.logical_and(prob != 0, prob_diag_M * prob_pheno_M != 0)
+    temp = np.zeros_like(prob)
+    temp[non_zero_idx] = prob[non_zero_idx] * np.log2(prob[non_zero_idx] / (
+        prob_diag_M[non_zero_idx] * prob_pheno_M[non_zero_idx]))
+    I = np.sum(temp, axis=1)
     return I, prob_diag, prob_pheno
 
 
@@ -401,7 +406,7 @@ def create_empirical_distribution(diag_prob, phenotype_prob,
     M = len(phenotype_prob)
     S_distribution = np.zeros([M, M, simulations])
     for i in np.arange(simulations):
-        S_distribution[i, :, :] = synergy_random(diag_prob, phenotype_prob,
+        S_distribution[:, :, i] = synergy_random(diag_prob, phenotype_prob,
                                          sample_per_simulation)
     return S_distribution
 
