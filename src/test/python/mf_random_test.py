@@ -5,6 +5,8 @@ import numpy as np
 from os import path
 import pickle
 import tempfile
+import multiprocessing
+import datetime
 
 
 class TestMFRandom(unittest.TestCase):
@@ -82,6 +84,15 @@ class TestMFRandom(unittest.TestCase):
         self.assertAlmostEqual(S[0, 0], 0.0, delta=0.001)
         self.assertAlmostEqual(S[5, 5], 0.0, delta=0.001)
 
+    def test_synergy_random_multiprocessing(self):
+        diag_prob = [0.4, 0.6]
+        phenotype_prob = np.random.uniform(0, 1, 10)
+        sample_per_simulation = 5000
+        queue = multiprocessing.Queue()
+        mf_random.synergy_random_multiprocessing(diag_prob, phenotype_prob,
+                                     sample_per_simulation, queue)
+        self.assertTrue(queue.get(1) is not None)
+
     def test_serializing_instance(self):
         cases = sum(self.d)
         with open(path.join(self.tempdir, 'test_serializing.obj'), 'wb') as \
@@ -101,6 +112,50 @@ class TestMFRandom(unittest.TestCase):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)
         p_matrix = randomiser.p_value(sampling=100)
         print(p_matrix)
+
+    def test_multiprocessing(self):
+        start = datetime.datetime.now()
+        np.random.seed(2)
+        M = 20
+        diag_prob = np.array([0.3, 0.7])
+        phenotype_prob = np.random.uniform(0, 1, M)
+        sample_per_simulation = 5000
+        simulations = 5
+        S_distribution = np.zeros([M, M, simulations])
+        workers = []
+        queque = multiprocessing.Queue()
+        for i in np.arange(simulations):
+            workers.append(multiprocessing.Process(
+                target=mf_random.synergy_random_multiprocessing,
+                args=(diag_prob, phenotype_prob,sample_per_simulation,
+                      queque)))
+        for i in np.arange(simulations):
+            workers[i].start()
+
+        for i in np.arange(simulations):
+            workers[i].join()
+            if (workers[i].is_alive()):
+                print('workers[{}] is live'.format(i))
+                workers[i].terminate()
+        for i in np.arange(simulations):
+            S_distribution[:, :, i] = queque.get(i + 1)
+
+        end = datetime.datetime.now()
+        duration = end - start
+        print("time for multiprocessing: {} ".format(duration.total_seconds()))
+
+        start = datetime.datetime.now()
+        S_distribution = np.zeros([M, M, simulations])
+        for i in np.arange(simulations):
+            print('start simulation: {}'.format(i))
+            S_distribution[:, :, i] = mf_random.synergy_random(diag_prob,
+                                                       phenotype_prob,
+                                                     sample_per_simulation)
+        end = datetime.datetime.now()
+        duration = end - start
+        print("time for non-multiprocessing: {} ".format(
+            duration.total_seconds()))
+
 
 
 if __name__ == '__main__':

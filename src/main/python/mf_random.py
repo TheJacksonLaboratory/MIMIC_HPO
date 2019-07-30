@@ -1,5 +1,6 @@
 import numpy as np
-import src.main.python.mf as mf
+import mf
+import multiprocessing
 
 
 class SynergyRandomizer:
@@ -10,6 +11,7 @@ class SynergyRandomizer:
         self.m1 = synergy.m1
         self.m2 = synergy.m2
         self.S = synergy.pairwise_synergy()
+        print('randomizer initiated')
 
     def p_value(self, sampling=100):
         """
@@ -72,30 +74,58 @@ def matrix_searchsorted(ordered, query, side='left'):
 
 def create_empirical_distribution(diag_prob, phenotype_prob,
                                   sample_per_simulation, simulations):
+    print('111')
     M = len(phenotype_prob)
     S_distribution = np.zeros([M, M, simulations])
+    # TODO: the following could be synchronized
     for i in np.arange(simulations):
+        print('start simulation: {}'.format(i))
         S_distribution[:, :, i] = synergy_random(diag_prob, phenotype_prob,
                                          sample_per_simulation)
+    # TODO: refactor the messy implementation; address deadlock
+    # workers = []
+    # queque = multiprocessing.Queue()
+    # for i in np.arange(simulations):
+    #     workers.append(multiprocessing.Process(
+    #         target=synergy_random_multiprocessing,
+    #         args=(diag_prob, phenotype_prob, sample_per_simulation,
+    #               queque)))
+    # for i in np.arange(simulations):
+    #     workers[i].start()
+    #
+    # for i in np.arange(simulations):
+    #     workers[i].join()
+    #
+    # for i in np.arange(simulations):
+    #     S_distribution[:, :, i] = queque.get(i + 1)
+
     return S_distribution
 
 
-def synergy_random(diag_prob, phenotype_prob, sample_per_simulation):
+def synergy_random(diag_prob, phenotype_prob, sample_size):
     mocked = mf.Synergy(disease='mocked', phenotype_list=np.arange(len(
         phenotype_prob)))
-    BATCH_SIZE = 100
-    total_batches = int(np.ceil(sample_per_simulation / BATCH_SIZE))
+    BATCH_SIZE = 1000
+    M = len(phenotype_prob)
+    total_batches = int(np.ceil(sample_size / BATCH_SIZE))
     for i in np.arange(total_batches):
         if (i == total_batches - 1):
-            actual_batch_size = sample_per_simulation - BATCH_SIZE * (i - 1)
+            actual_batch_size = sample_size - BATCH_SIZE * (i - 1)
         else:
             actual_batch_size = BATCH_SIZE
         d = np.random.choice([0, 1], actual_batch_size, replace=True,
                              p=diag_prob)
-        P = np.zeros([actual_batch_size, len(phenotype_prob)])
-        for j in np.arange(len(phenotype_prob)):
-            P[:, j] = np.random.choice([0, 1], actual_batch_size,
-                                       replace=True, p=[phenotype_prob[j],
-                                                        1 - phenotype_prob[j]])
+        # the following is faster than doing choice with loops
+        P = np.random.uniform(0, 1, actual_batch_size*M).reshape([
+            actual_batch_size, M])
+        ones_idx = (P < phenotype_prob.reshape([1, M]))
+        P = np.zeros_like(P)
+        P[ones_idx] = 1
         mocked.add_batch(P, d)
     return mocked.pairwise_synergy()
+
+def synergy_random_multiprocessing(diag_prob, phenotype_prob, sample_size,
+                                   queque):
+    synergy = synergy_random(diag_prob, phenotype_prob, sample_size)
+    print('add result to queue')
+    queque.put(synergy)
