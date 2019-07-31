@@ -7,3 +7,9 @@
 target
 src/main/resources/result-archive.txt
 src/main/resources/result.txt
+.classpath
+.project
+.settings
+docker_data
+src/main/python/__pycache__/
+*.npy

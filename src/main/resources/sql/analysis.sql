@@ -9,5 +9,13 @@ table3 AS (SELECT itemid, valueuom, min(valuenum) AS minimum, avg(valuenum) AS m
 table23 AS (SELECT table2.itemid AS itemid, table2.valueuom AS valueuom, table2.n AS counts, table2.mean AS mean_all, table3.minimum AS min_normal,table3.mean AS mean_normal, table3.maximum AS max_normal FROM table2 LEFT JOIN table3 ON  table2.itemid=table3.itemid AND table2.valueuom=table3.valueuom)
 SELECT table23.itemid, table23.valueuom, table23.counts, table23.mean_all, table23.min_normal, table23.mean_normal, table23.max_normal FROM table1 LEFT JOIN table23 ON  table1.itemid=table23.itemid;
 
+-- same query rewritten for MySQL5.7
+select itemid, valueuom, count(*) as counts, avg(valuenum) as mean_all,
+min(case when (flag IS NULL OR UPPER(flag)!='ABNORMAL') then valuenum else null end) as min_normal,
+avg(case when (flag IS NULL OR UPPER(flag)!='ABNORMAL') then valuenum else null end) as mean_normal,
+max(case when (flag IS NULL OR UPPER(flag)!='ABNORMAL') then valuenum else null end) as max_normal
+from labevents WHERE valuenum IS NOT NULL
+GROUP BY itemid, valueuom
+
 -- count non numeric values
 SELECT value, count(value) AS n FROM labevents  WHERE valuenum IS NULL group by value having n > 100 ORDER BY n desc;
