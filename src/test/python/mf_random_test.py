@@ -88,10 +88,13 @@ class TestMFRandom(unittest.TestCase):
         diag_prob = [0.4, 0.6]
         phenotype_prob = np.random.uniform(0, 1, 10)
         sample_per_simulation = 5000
-        queue = multiprocessing.Queue()
+        empirical_distributions = np.zeros([10, 10, 2])
+        self.assertTrue(np.sum(np.abs(empirical_distributions)) == 0)
         mf_random.synergy_random_multiprocessing(diag_prob, phenotype_prob,
-                                     sample_per_simulation, queue)
-        self.assertTrue(queue.get(1) is not None)
+                                     sample_per_simulation, 0,
+                                                 empirical_distributions)
+        self.assertTrue(np.sum(np.abs(empirical_distributions)) > 0)
+
 
     def test_serializing_instance(self):
         cases = sum(self.d)
@@ -123,22 +126,16 @@ class TestMFRandom(unittest.TestCase):
         simulations = 5
         S_distribution = np.zeros([M, M, simulations])
         workers = []
-        queque = multiprocessing.Queue()
         for i in np.arange(simulations):
             workers.append(multiprocessing.Process(
                 target=mf_random.synergy_random_multiprocessing,
                 args=(diag_prob, phenotype_prob,sample_per_simulation,
-                      queque)))
+                      i, S_distribution)))
         for i in np.arange(simulations):
             workers[i].start()
 
         for i in np.arange(simulations):
             workers[i].join()
-            if (workers[i].is_alive()):
-                print('workers[{}] is live'.format(i))
-                workers[i].terminate()
-        for i in np.arange(simulations):
-            S_distribution[:, :, i] = queque.get(i + 1)
 
         end = datetime.datetime.now()
         duration = end - start

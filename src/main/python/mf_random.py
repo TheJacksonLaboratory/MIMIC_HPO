@@ -74,30 +74,26 @@ def matrix_searchsorted(ordered, query, side='left'):
 
 def create_empirical_distribution(diag_prob, phenotype_prob,
                                   sample_per_simulation, simulations):
-    print('111')
     M = len(phenotype_prob)
     S_distribution = np.zeros([M, M, simulations])
-    # TODO: the following could be synchronized
+    # # TODO: the following could be synchronized
+    # for i in np.arange(simulations):
+    #     print('start simulation: {}'.format(i))
+    #     S_distribution[:, :, i] = synergy_random(diag_prob, phenotype_prob,
+    #                                      sample_per_simulation)
+    # TODO: refactor the messy implementation
+    workers = []
+    empirical_distribution = np.zeros([M, M, simulations])
     for i in np.arange(simulations):
-        print('start simulation: {}'.format(i))
-        S_distribution[:, :, i] = synergy_random(diag_prob, phenotype_prob,
-                                         sample_per_simulation)
-    # TODO: refactor the messy implementation; address deadlock
-    # workers = []
-    # queque = multiprocessing.Queue()
-    # for i in np.arange(simulations):
-    #     workers.append(multiprocessing.Process(
-    #         target=synergy_random_multiprocessing,
-    #         args=(diag_prob, phenotype_prob, sample_per_simulation,
-    #               queque)))
-    # for i in np.arange(simulations):
-    #     workers[i].start()
-    #
-    # for i in np.arange(simulations):
-    #     workers[i].join()
-    #
-    # for i in np.arange(simulations):
-    #     S_distribution[:, :, i] = queque.get(i + 1)
+        workers.append(multiprocessing.Process(
+            target=synergy_random_multiprocessing,
+            args=(diag_prob, phenotype_prob, sample_per_simulation,
+                  i, empirical_distribution)))
+    for i in np.arange(simulations):
+        workers[i].start()
+
+    for i in np.arange(simulations):
+        workers[i].join()
 
     return S_distribution
 
@@ -124,8 +120,7 @@ def synergy_random(diag_prob, phenotype_prob, sample_size):
         mocked.add_batch(P, d)
     return mocked.pairwise_synergy()
 
-def synergy_random_multiprocessing(diag_prob, phenotype_prob, sample_size,
-                                   queque):
+def synergy_random_multiprocessing(diag_prob, phenotype_prob, sample_size, i,
+                                   empirical_distribution):
     synergy = synergy_random(diag_prob, phenotype_prob, sample_size)
-    print('add result to queue')
-    queque.put(synergy)
+    empirical_distribution[:, :, i] = synergy
