@@ -1,16 +1,15 @@
 package org.jax.Entity;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.sql.Date;
 
 @Entity
 @Table(name = "vw_pc_labs")
-@IdClass(JHULab.JHULabId.class)
 public class JHULab {
 
     /**
      * Class to represent the following table
+     [LAB_RESULT_CM_ID] [varchar](50) NOT NULL PRIMARY
      [PATID] [varchar](50) NOT NULL,
      [ENCOUNTERID] [varchar](50) NULL,
      [LAB_LOINC] [varchar](10) NULL,
@@ -24,12 +23,12 @@ public class JHULab {
      [RANGE_HIGH] [varchar](10) NULL,
      */
 
-
-    @Column(name = "PATID")
+    @Column(name = "LAB_RESULT_CM_ID")
     @Id
+    private String lab_result_cm_id;
+    @Column(name = "PATID")
     private String patiend_id;
     @Column(name = "ENCOUNTERID")
-    @Id
     private String encounter_id;
     @Column(name = "LAB_LOINC")
     private String loinc_id;
@@ -50,7 +49,8 @@ public class JHULab {
     @Column(name = "RANGE_HIGH")
     private String range_high;
 
-    public JHULab(String patiend_id, String encounter_id, String loinc_id, Date result_date, String result_time, Float result_num, String loinc_long_common_name, String loinc_short_name, String loinc_unit, String range_low, String range_high) {
+    public JHULab(String lab_result_cm_id, String patiend_id, String encounter_id, String loinc_id, Date result_date, String result_time, Float result_num, String loinc_long_common_name, String loinc_short_name, String loinc_unit, String range_low, String range_high) {
+        this.lab_result_cm_id = lab_result_cm_id;
         this.patiend_id = patiend_id;
         this.encounter_id = encounter_id;
         this.loinc_id = loinc_id;
@@ -62,6 +62,14 @@ public class JHULab {
         this.loinc_unit = loinc_unit;
         this.range_low = range_low;
         this.range_high = range_high;
+    }
+
+    public String getLab_result_cm_id() {
+        return lab_result_cm_id;
+    }
+
+    public void setLab_result_cm_id(String lab_result_cm_id) {
+        this.lab_result_cm_id = lab_result_cm_id;
     }
 
     public String getPatiend_id() {
@@ -150,11 +158,5 @@ public class JHULab {
 
     public void setRange_high(String range_high) {
         this.range_high = range_high;
-    }
-
-
-    public static class JHULabId implements Serializable{
-        private String patiend_id;
-        private String encounter_id;
     }
 }
