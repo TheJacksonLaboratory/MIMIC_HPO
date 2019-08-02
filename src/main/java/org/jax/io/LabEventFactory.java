@@ -40,11 +40,11 @@ public class LabEventFactory {
             int item_id = Integer.parseInt(elements[3]);
             Timestamp charttime = Timestamp.valueOf(elements[4]);
             String value = elements[5].trim().replace("\"", "");
-            float valuenum;
-            if (elements[6].isEmpty()) {
-                valuenum = Float.MAX_VALUE;
+            Double valuenum;
+            if (StringUtils.isBlank(elements[6])) {
+                valuenum = null;
             } else {
-                valuenum = Float.parseFloat(elements[6].trim());
+                valuenum = Double.parseDouble(elements[6].trim());
             }
             String valueuom = elements[7].trim().replace("\"", "");
             String flag = elements[8].trim().replace("\"", "");
@@ -72,11 +72,11 @@ public class LabEventFactory {
 		int item_id = rs.getInt("ITEMID");
 		Timestamp charttime = rs.getTimestamp("CHARTTIME");
 		String value = ResultSetUtil.getStringOrBlank(rs, "VALUE").trim().replace("\"", "");
-        float valuenum;
+        Double valuenum;
         if (StringUtils.isBlank(rs.getString("VALUENUM"))) {
-            valuenum = Float.MAX_VALUE;
+        	valuenum = null;
         } else {
-            valuenum = Float.parseFloat(rs.getString("VALUENUM").trim());
+            valuenum = Double.parseDouble(rs.getString("VALUENUM").trim());
         }
         String valueuom = ResultSetUtil.getStringOrBlank(rs, "VALUEUOM").trim().replace("\"", "");
         String flag = ResultSetUtil.getStringOrBlank(rs, "FLAG").trim().replace("\"", "");
