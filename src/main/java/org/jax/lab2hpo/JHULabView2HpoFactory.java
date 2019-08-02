@@ -2,6 +2,7 @@ package org.jax.lab2hpo;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.dstu3.model.Coding;
+import org.jax.Entity.JHULab;
 import org.jax.Entity.LabEvent;
 import org.jax.service.LocalLabTestNotMappedToLoinc;
 import org.monarchinitiative.loinc2hpo.codesystems.Code;
@@ -38,7 +39,7 @@ public class JHULabView2HpoFactory {
     public Optional<HpoTerm4TestOutcome> convert(JHULab lab) throws LocalLabTestNotMappedToLoinc, MalformedLoincCodeException, LoincCodeNotAnnotatedException, UnrecognizedUnitException, UnableToInterpretateException, UnrecognizedCodeException {
 
 
-        String loinc = lab.getLabLoinc();
+        String loinc = lab.getLoinc_id();
         
         //throws MalformedLoincCodeException
         LoincId loincId = new LoincId(loinc);
@@ -48,9 +49,9 @@ public class JHULabView2HpoFactory {
             throw new LoincCodeNotAnnotatedException();
         }
         
-        Double value = lab.getValueNum();
-        Double low = lab.getRangeLow();
-        Double high = lab.getRangeHigh();
+        Float value = lab.getResult_num();
+        Float low = Float.parseFloat(lab.getRange_low());
+        Float high = Float.parseFloat(lab.getRange_high());
         
         // placeholder of interpretation code
         String code = null;

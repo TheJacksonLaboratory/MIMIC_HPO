@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.jax.Entity.JHULab;
+import org.jax.Entity.JHULabHpo;
 import org.jax.Entity.LabEvent;
 import org.jax.Entity.LabHpo;
 import org.jax.io.JHULabViewFactory;
@@ -42,7 +44,7 @@ public class JHULab2HpoService {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
-	private final String maxRowIdQuery = "select max(row_id) from dbo.vw_pc_labs";
+	private final String countQuery = "select count(*) from dbo.vw_pc_labs";
 	private final String allLabsQuery = "select * from dbo.vw_pc_labs";
 
 	public void labToHpo(JHULabView2HpoFactory labConvertFactory) {
@@ -58,13 +60,13 @@ public class JHULab2HpoService {
 			//TODO: warn user
 			return;
 		}
-		Integer maxRowId = jdbcTemplate.queryForObject(maxRowIdQuery, null, Integer.class);
+		Integer count = jdbcTemplate.queryForObject(countQuery, null, Integer.class);
 		jdbcTemplate.query(allLabsQuery,
-				new LabCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory, maxRowId));
+				new LabCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory, count));
 	}
 
 	public void initTable() {
-		String query = "CREATE TABLE IF NOT EXISTS LABHPO (ROW_ID INT UNSIGNED NOT NULL, NEGATED VARCHAR(5), MAP_TO VARCHAR(255), PRIMARY KEY (ROW_ID));";
+		String query = "CREATE TABLE IF NOT EXISTS LABHPO (ROW_ID VARCHAR(50) NOT NULL, NEGATED VARCHAR(5), MAP_TO VARCHAR(255), PRIMARY KEY (ROW_ID));";
 		jdbcTemplate.execute(query);
 		jdbcTemplate.execute("TRUNCATE LABHPO;");
 	}
@@ -80,23 +82,25 @@ public class JHULab2HpoService {
 		JdbcTemplate jdbcTemplate;
 		TransactionTemplate transactionTemplate;
 		JHULabView2HpoFactory labConvertFactory;
-		Integer maxRowId;
-		List<LabHpo> labHpos = new ArrayList<>(batchSize);
+		Integer numRows;
+		Integer count = 0;
+		List<JHULabHpo> labHpos = new ArrayList<>(batchSize);
 
 		LabCallbackHandler(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager,
-				JHULabView2HpoFactory labConvertFactory, Integer maxRowId) {
+				JHULabView2HpoFactory labConvertFactory, Integer numRows) {
 			this.jdbcTemplate = jdbcTemplate;
 			this.transactionTemplate = new TransactionTemplate(transactionManager);
 			this.labConvertFactory = labConvertFactory;
-			this.maxRowId = maxRowId;
+			this.numRows = numRows;
 		}
 
 		@Override
 		public void processRow(ResultSet rs) throws SQLException {
 
 			JHULab lab = JHULabViewFactory.parse(rs);
-			int rowId = lab.getRow_id();
-			LabHpo labHpo = null;
+			count++;
+			String labId = lab.getLab_result_cm_id();
+			JHULabHpo labHpo = null;
 
 			Optional<HpoTerm4TestOutcome> outcome = null;
 			try {
@@ -107,38 +111,38 @@ public class JHULab2HpoService {
 					negated = outcome.get().isNegated();
 					mappedHpo = outcome.get().getId().getValue();
 				}
-				labHpo = new LabHpo(rowId, negated ? "T" : "F", mappedHpo);
+				labHpo = new JHULabHpo(labId, negated ? "T" : "F", mappedHpo);
 			} catch (LocalLabTestNotMappedToLoinc e) {
 				//ERROR 1: local id not mapped to loinc
 				//Look up the D_LAB2HPO_MAP_ERR table for error code
-				labHpo = new LabHpo(rowId, "U", "ERROR1");
+				labHpo = new JHULabHpo(labId, "U", "ERROR1");
 			} catch (MalformedLoincCodeException e) {
 				//ERROR 2: malformed loinc id
-				labHpo = new LabHpo(rowId, "U", "ERROR2");
+				labHpo = new JHULabHpo(labId, "U", "ERROR2");
 			} catch (LoincCodeNotAnnotatedException e) {
 				//ERROR 3: loinc code not annotated
-				labHpo = new LabHpo(rowId, "U", "ERROR3");
+				labHpo = new JHULabHpo(labId, "U", "ERROR3");
 			} catch (UnrecognizedCodeException e) {
 				//ERROR 4: interpretation code not mapped to hpo
-				labHpo = new LabHpo(rowId, "U", "ERROR4");
+				labHpo = new JHULabHpo(labId, "U", "ERROR4");
 			} catch (UnableToInterpretateException e) {
 				//ERROR 5: unable to interpret
-				labHpo = new LabHpo(rowId, "U", "ERROR5");
+				labHpo = new JHULabHpo(labId, "U", "ERROR5");
 			} catch (UnrecognizedUnitException e) {
 				//ERROR 6: unrecognized unit
-				labHpo = new LabHpo(rowId, "U", "ERROR6");
+				labHpo = new JHULabHpo(labId, "U", "ERROR6");
 			}
 
 			labHpos.add(labHpo);
 			
-			if (labHpos.size() == batchSize || maxRowId.equals(rowId)) {
+			if (labHpos.size() == batchSize || count.equals(numRows)) {
 				insertBatch(labHpos);
 				labHpos.clear();
 			}
 
 		}
 
-		public void insertBatch(final List<LabHpo> labHpos) {
+		public void insertBatch(final List<JHULabHpo> labHpos) {
 
 			String sql = "INSERT INTO LABHPO " + "(ROW_ID, NEGATED, MAP_TO) VALUES (?, ?, ?)";
 
@@ -150,8 +154,8 @@ public class JHULab2HpoService {
 
 						@Override
 						public void setValues(PreparedStatement ps, int i) throws SQLException {
-							LabHpo labHpo = labHpos.get(i);
-							ps.setInt(1, labHpo.getRowid());
+							JHULabHpo labHpo = labHpos.get(i);
+							ps.setString(1, labHpo.getRowid());
 							ps.setString(2, labHpo.getNegated());
 							ps.setString(3, labHpo.getMapTo());
 						}
