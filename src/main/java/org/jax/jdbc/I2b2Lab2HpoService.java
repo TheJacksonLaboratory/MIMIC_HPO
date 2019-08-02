@@ -32,7 +32,7 @@ import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
-public class Lab2HpoService {
+public class I2b2Lab2HpoService {
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;

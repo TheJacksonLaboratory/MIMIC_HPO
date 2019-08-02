@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import org.jax.io.LabSummaryParser;
-import org.jax.jdbc.Lab2HpoService;
+import org.jax.jdbc.I2b2Lab2HpoService;
 import org.jax.lab2hpo.LabEvents2HpoFactory;
 import org.jax.lab2hpo.LabSummary;
 import org.monarchinitiative.loinc2hpo.io.LoincAnnotationSerializationFactory;
@@ -27,7 +27,7 @@ public class LabToHpoCmd implements MimicCommand {
     private static final Logger logger = LoggerFactory.getLogger(LabToHpoCmd.class);
     
     @Autowired
-    private Lab2HpoService lab2HpoService;
+    private JHULab2HpoService lab2HpoService;
 
     @Parameter(names = {"-lab", "--lab_events"}, description = "file path to LABEVENTS.csv")
     private String labEventsPath;
