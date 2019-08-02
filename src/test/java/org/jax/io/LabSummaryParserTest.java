@@ -1,6 +1,7 @@
 package org.jax.io;
 
 import org.jax.lab2hpo.LabSummary;
+import org.junit.Ignore;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -10,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Ignore
 class LabSummaryParserTest {
 
     private static Map<Integer, LabSummary> labSummaryMap;
