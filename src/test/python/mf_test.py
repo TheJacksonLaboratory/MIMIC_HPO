@@ -2,6 +2,7 @@ import unittest
 import src.main.python.mf as mf
 import numpy as np
 import math
+import tempfile
 
 
 class TestMF(unittest.TestCase):
@@ -17,6 +18,7 @@ class TestMF(unittest.TestCase):
                            [1,1,0,0],
                            [1,0,0,1],
                            [0,1,1,0]])
+        self.tempdir = tempfile.mkdtemp()
 
 
     def test_summarize_diagnosis(self):
@@ -128,10 +130,8 @@ class TestMF(unittest.TestCase):
         synergies = {}
         synergies['heart failure'] = heart_failure
         synergies['heart failure'].add_batch(self.P, self.d)
-        print(synergies['heart failure'].pairwise_synergy())
+        #print(synergies['heart failure'].pairwise_synergy())
         heart_failure.__getattribute__('m1')
-
-
 
 
 if __name__ == '__main__':

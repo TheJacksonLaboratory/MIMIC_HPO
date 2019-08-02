@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class Synergy:
@@ -52,6 +53,7 @@ class Synergy:
         self.control_N = 0
         # name of phenotypes
         self.phenotype_label = np.array(phenotype_list)
+        self.S = np.empty(1)
 
     def set_phenotype_label(self, phenotype_list):
         """
@@ -129,8 +131,17 @@ class Synergy:
         """
         I,_,_ = mf_diagnosis_phenotype(self.m1, self.case_N, self.control_N)
         II = mf_diagnosis_phenotype_pair(self.m2, self.case_N, self.control_N)
-        S = synergy(I, II)
-        return S
+        self.S = synergy(I, II)
+        return self.S
+
+    def pairwise_synergy_labeled(self):
+        M = len(self.phenotype_label)
+        P1 = np.repeat(self.phenotype_label, M)
+        P2 = np.tile(self.phenotype_label, M)
+        S = self.pairwise_synergy()
+        df = pd.DataFrame(data = {'P1': P1, 'P2': P2, 'synergy':
+            S.flat}).sort_values(by = 'synergy', ascending=False)
+        return df
 
 
 def summarize_diagnosis(d):
@@ -298,7 +309,12 @@ def mf_diagnosis_phenotype(m1, case_N, control_N):
                             np.repeat(prob_diag, M),
                             np.repeat(1 - prob_diag, M)], axis=1)
     prob_pheno_M = np.stack([prob_pheno, prob_pheno, 1 - prob_pheno, 1 - prob_pheno], axis=1)
-    I = np.sum(prob * np.log2(prob / (prob_diag_M * prob_pheno_M)), axis=1)
+    # prob could be 0
+    non_zero_idx = np.logical_and(prob != 0, prob_diag_M * prob_pheno_M != 0)
+    temp = np.zeros_like(prob)
+    temp[non_zero_idx] = prob[non_zero_idx] * np.log2(prob[non_zero_idx] / (
+        prob_diag_M[non_zero_idx] * prob_pheno_M[non_zero_idx]))
+    I = np.sum(temp, axis=1)
     return I, prob_diag, prob_pheno
 
 
