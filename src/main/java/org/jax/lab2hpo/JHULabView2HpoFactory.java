@@ -1,9 +1,10 @@
 package org.jax.lab2hpo;
 
-import org.apache.commons.lang3.StringUtils;
+import java.util.Map;
+import java.util.Optional;
+
 import org.hl7.fhir.dstu3.model.Coding;
 import org.jax.Entity.JHULab;
-import org.jax.Entity.LabEvent;
 import org.jax.service.LocalLabTestNotMappedToLoinc;
 import org.monarchinitiative.loinc2hpo.codesystems.Code;
 import org.monarchinitiative.loinc2hpo.exception.LoincCodeNotAnnotatedException;
@@ -11,15 +12,9 @@ import org.monarchinitiative.loinc2hpo.exception.MalformedLoincCodeException;
 import org.monarchinitiative.loinc2hpo.exception.UnrecognizedCodeException;
 import org.monarchinitiative.loinc2hpo.loinc.HpoTerm4TestOutcome;
 import org.monarchinitiative.loinc2hpo.loinc.LOINC2HpoAnnotationImpl;
-import org.monarchinitiative.loinc2hpo.loinc.LoincEntry;
 import org.monarchinitiative.loinc2hpo.loinc.LoincId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 /**
  * Class that does the heavy lifting in this project: convert a lab into HPO.

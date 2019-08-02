@@ -44,8 +44,9 @@ public class JHULab2HpoService {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
-	private final String countQuery = "select count(*) from dbo.vw_pc_labs";
-	private final String allLabsQuery = "select * from dbo.vw_pc_labs";
+	// TODO: Limit to 1000 for testing
+	private final String countQuery = "select count(*) from dbo.vw_pc_labs LIMIT 1000";
+	private final String allLabsQuery = "select * from dbo.vw_pc_labs LIMIT 1000";
 
 	public void labToHpo(JHULabView2HpoFactory labConvertFactory) {
 		// The fetch size will limit how many results come back at once reducing memory
@@ -112,6 +113,7 @@ public class JHULab2HpoService {
 					mappedHpo = outcome.get().getId().getValue();
 				}
 				labHpo = new JHULabHpo(labId, negated ? "T" : "F", mappedHpo);
+				System.out.println(labHpo);
 			} catch (LocalLabTestNotMappedToLoinc e) {
 				//ERROR 1: local id not mapped to loinc
 				//Look up the D_LAB2HPO_MAP_ERR table for error code

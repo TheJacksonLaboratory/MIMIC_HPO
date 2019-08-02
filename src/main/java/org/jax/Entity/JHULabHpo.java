@@ -49,6 +49,6 @@ public class JHULabHpo {
 
     @Override
     public String toString(){
-        return String.format("%d, %s, %s", this.rowid, this.negated, this.mapTo);
+        return String.format("%s, %s, %s", this.rowid, this.negated, this.mapTo);
     }
 }

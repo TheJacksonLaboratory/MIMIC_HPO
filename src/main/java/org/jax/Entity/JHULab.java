@@ -64,7 +64,7 @@ public class JHULab {
         this.range_high = range_high;
     }
 
-    public String getLab_result_cm_id() {
+	public String getLab_result_cm_id() {
         return lab_result_cm_id;
     }
 
