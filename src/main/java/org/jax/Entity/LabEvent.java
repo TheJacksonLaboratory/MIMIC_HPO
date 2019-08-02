@@ -24,13 +24,13 @@ public class LabEvent {
     @Column(name = "VALUE")
     private String value;
     @Column(name = "VALUENUM")
-    private double value_num;
+    private Double value_num;
     @Column(name = "VALUEUOM")
     private String value_uom;
     @Column(name = "FLAG")
     private String flag;
 
-    public LabEvent(int row_id, int subject_id, int hadm_id, int item_id, Timestamp chart_time, String value, double value_num, String value_uom, String flag) {
+    public LabEvent(int row_id, int subject_id, int hadm_id, int item_id, Timestamp chart_time, String value, Double value_num, String value_uom, String flag) {
         this.row_id = row_id;
         this.subject_id = subject_id;
         this.hadm_id = hadm_id;
@@ -90,11 +90,11 @@ public class LabEvent {
         this.value = value;
     }
 
-    public double getValue_num() {
+    public Double getValue_num() {
         return value_num;
     }
 
-    public void setValue_num(double value_num) {
+    public void setValue_num(Double value_num) {
         this.value_num = value_num;
     }
 
