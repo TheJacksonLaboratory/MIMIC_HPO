@@ -9,7 +9,9 @@ import java.util.Optional;
 
 import org.jax.Entity.LabEvent;
 import org.jax.Entity.LabHpo;
+import org.jax.io.JHULabViewFactory;
 import org.jax.io.LabEventFactory;
+import org.jax.lab2hpo.JHULabView2HpoFactory;
 import org.jax.lab2hpo.LabEvents2HpoFactory;
 import org.jax.lab2hpo.UnableToInterpretateException;
 import org.jax.lab2hpo.UnrecognizedUnitException;
@@ -92,13 +94,13 @@ public class JHULab2HpoService {
 		@Override
 		public void processRow(ResultSet rs) throws SQLException {
 
-			LabEvent labEvent = LabEventFactory.parse(rs);
-			int rowId = labEvent.getRow_id();
+			JHULab lab = JHULabViewFactory.parse(rs);
+			int rowId = lab.getRow_id();
 			LabHpo labHpo = null;
 
 			Optional<HpoTerm4TestOutcome> outcome = null;
 			try {
-				outcome = labConvertFactory.convert(labEvent);
+				outcome = labConvertFactory.convert(lab);
 				boolean negated = false;
 				String mappedHpo = "?";
 				if (outcome.isPresent()) {
