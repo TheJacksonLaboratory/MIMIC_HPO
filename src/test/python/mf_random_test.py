@@ -34,11 +34,11 @@ class TestMFRandom(unittest.TestCase):
         self.assertEqual(idx.tolist(), expected)
 
     def test_create_empirical_distribution(self):
-        diag_prob = np.array([0.3, 0.7])
+        diag_prevalence = 0.3
         phenotype_prob = np.random.uniform(0, 1, 10)
         sample_per_simulation = 500
         simulations = 100
-        distribution = mf_random.create_empirical_distribution(diag_prob,
+        distribution = mf_random.create_empirical_distribution(diag_prevalence,
                                                         phenotype_prob,
                                                         sample_per_simulation,
                                                         simulations)
@@ -73,10 +73,10 @@ class TestMFRandom(unittest.TestCase):
                                                                   alternative='e'))
 
     def test_synergy_random(self):
-        diag_prob = [0.4, 0.6]
+        disease_prevalence = 0.4
         phenotype_prob = np.random.uniform(0, 1, 10)
         sample_per_simulation = 5000
-        S = mf_random.synergy_random(diag_prob, phenotype_prob,
+        S = mf_random.synergy_random(disease_prevalence, phenotype_prob,
                               sample_per_simulation)
         # self.assertAlmostEqual(S.astype(np.float32).all(),
         #                        np.zeros(S.shape).astype(np.float32).all(),
@@ -85,12 +85,12 @@ class TestMFRandom(unittest.TestCase):
         self.assertAlmostEqual(S[5, 5], 0.0, delta=0.001)
 
     def test_synergy_random_multiprocessing(self):
-        diag_prob = [0.4, 0.6]
+        disease_prevalence = 0.4
         phenotype_prob = np.random.uniform(0, 1, 10)
         sample_per_simulation = 5000
         empirical_distributions = np.zeros([10, 10, 2])
         self.assertTrue(np.sum(np.abs(empirical_distributions)) == 0)
-        mf_random.synergy_random_multiprocessing(diag_prob, phenotype_prob,
+        mf_random.synergy_random_multiprocessing(disease_prevalence, phenotype_prob,
                                      sample_per_simulation, 0,
                                                  empirical_distributions)
         self.assertTrue(np.sum(np.abs(empirical_distributions)) > 0)
@@ -120,7 +120,7 @@ class TestMFRandom(unittest.TestCase):
         start = datetime.datetime.now()
         np.random.seed(2)
         M = 20
-        diag_prob = np.array([0.3, 0.7])
+        disease_prevalence = 0.3
         phenotype_prob = np.random.uniform(0, 1, M)
         sample_per_simulation = 5000
         simulations = 5
@@ -129,7 +129,7 @@ class TestMFRandom(unittest.TestCase):
         for i in np.arange(simulations):
             workers.append(multiprocessing.Process(
                 target=mf_random.synergy_random_multiprocessing,
-                args=(diag_prob, phenotype_prob,sample_per_simulation,
+                args=(disease_prevalence, phenotype_prob,sample_per_simulation,
                       i, S_distribution)))
         for i in np.arange(simulations):
             workers[i].start()
@@ -145,7 +145,7 @@ class TestMFRandom(unittest.TestCase):
         S_distribution = np.zeros([M, M, simulations])
         for i in np.arange(simulations):
             print('start simulation: {}'.format(i))
-            S_distribution[:, :, i] = mf_random.synergy_random(diag_prob,
+            S_distribution[:, :, i] = mf_random.synergy_random(disease_prevalence,
                                                        phenotype_prob,
                                                      sample_per_simulation)
         end = datetime.datetime.now()
