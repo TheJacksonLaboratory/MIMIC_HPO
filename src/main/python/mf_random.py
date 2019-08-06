@@ -5,7 +5,8 @@ import multiprocessing
 
 class SynergyRandomizer:
 
-    def __init__(self, synergy):
+    def __init__(self, synergy, logger=None):
+        self.logger = logger
         self.case_N = synergy.case_N
         self.control_N = synergy.control_N
         self.m1 = synergy.m1
@@ -98,31 +99,21 @@ def create_empirical_distribution(diag_prevalence, phenotype_prob,
     :param SIMULATION_SIZE: total simulations
     :return: a M x M x SIMULATION_SIZE matrix for the empirical distributions
     """
-    M = len(phenotype_prob)
-    S_distribution = np.zeros([M, M, SIMULATION_SIZE])
-    # # TODO: the following could be synchronized
-    # for i in np.arange(simulations):
-    #     print('start simulation: {}'.format(i))
-    #     S_distribution[:, :, i] = synergy_random(diag_prob, phenotype_prob,
-    #                                      sample_per_simulation)
-    # TODO: refactor the messy implementation
-    workers = []
-    empirical_distribution = np.zeros([M, M, SIMULATION_SIZE])
-    for i in np.arange(SIMULATION_SIZE):
-        workers.append(multiprocessing.Process(
-            target=synergy_random_multiprocessing,
-            args=(diag_prevalence, phenotype_prob, sample_per_simulation,
-                  i, empirical_distribution)))
-    for i in np.arange(SIMULATION_SIZE):
-        workers[i].start()
+    workers = multiprocessing.Pool()
+    results = [workers.apply_async(synergy_random, args=(diag_prevalence,
+                                                        phenotype_prob,
+                                                        sample_per_simulation,
+                                                        i))
+         for i in np.arange(SIMULATION_SIZE)]
+    workers.close()
+    workers.join()
+    assert(len(results) == SIMULATION_SIZE)
+    empirical_distribution = np.stack([res.get() for res in results], axis=-1)
 
-    for i in np.arange(SIMULATION_SIZE):
-        workers[i].join()
-
-    return S_distribution
+    return empirical_distribution
 
 
-def synergy_random(disease_prevalence, phenotype_prob, sample_size):
+def synergy_random(disease_prevalence, phenotype_prob, sample_size, seed=None):
     """
     Simulate disease condition and phenotype matrix with provided
     probability distributions and calculate the resulting synergy.
@@ -133,6 +124,8 @@ def synergy_random(disease_prevalence, phenotype_prob, sample_size):
     :return: a M x M matrix representing the pairwise synergy from the
     simulated disease conditions and phenotype profiles.
     """
+    if (seed is not None):
+        np.random.seed(seed)
     mocked = mf.Synergy(disease='mocked', phenotype_list=np.arange(len(
         phenotype_prob)))
     BATCH_SIZE = 1000
@@ -154,21 +147,3 @@ def synergy_random(disease_prevalence, phenotype_prob, sample_size):
         P[ones_idx] = 1
         mocked.add_batch(P, d)
     return mocked.pairwise_synergy()
-
-
-def synergy_random_multiprocessing(disease_prevalence, phenotype_prob,
-                                   sample_size, i,
-                                   empirical_distribution):
-    """
-    A wrapper for computing synergy scores from simulated distributions.
-    :param disease_prevalence: a scalar representation of the disease prevalence
-    :param phenotype_prob: a size M vector representing the observed
-    prevalence of phenotypes
-    :param sample_size: number of cases to simulate
-    :param i: the index of current simulation
-    :param empirical_distribution: a M x M x SIMULATION_SIZE array that are
-    shared by processes to hold data
-    :return: None
-    """
-    synergy = synergy_random(disease_prevalence, phenotype_prob, sample_size)
-    empirical_distribution[:, :, i] = synergy

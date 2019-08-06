@@ -140,7 +140,8 @@ class Synergy:
         P2 = np.tile(self.phenotype_label, M)
         S = self.pairwise_synergy()
         df = pd.DataFrame(data = {'P1': P1, 'P2': P2, 'synergy':
-            S.flat}).sort_values(by = 'synergy', ascending=False)
+            S.flat}).sort_values(by = 'synergy',
+                                 ascending=False).reset_index(drop=True)
         return df
 
 

@@ -5,23 +5,20 @@ import numpy as np
 from os import path
 import pickle
 import tempfile
-import multiprocessing
-import datetime
 
 
 class TestMFRandom(unittest.TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
+        M = 10
+        N = 10000
+        phenotype_list = ['HP:' + str(i + 1) for i in np.arange(M)]
         self.heart_failure = mf.Synergy(disease='heart failure',
-                                   phenotype_list=['HP:001', 'HP:002',
-                                                   'HP:003',
-                                                   'HP:004', 'HP:005',
-                                                   'HP:006', 'HP:007',
-                                                   'HP:008'])
+                                   phenotype_list=phenotype_list)
         np.random.seed(1)
-        self.d = np.random.randint(0, 2, 10000)
-        self.P = np.random.randint(0, 2, 80000).reshape([10000, 8])
+        self.d = np.random.randint(0, 2, N)
+        self.P = np.random.randint(0, 2, M * N).reshape([N, M])
 
         self.heart_failure.add_batch(self.P, self.d)
 
@@ -84,18 +81,6 @@ class TestMFRandom(unittest.TestCase):
         self.assertAlmostEqual(S[0, 0], 0.0, delta=0.001)
         self.assertAlmostEqual(S[5, 5], 0.0, delta=0.001)
 
-    def test_synergy_random_multiprocessing(self):
-        disease_prevalence = 0.4
-        phenotype_prob = np.random.uniform(0, 1, 10)
-        sample_per_simulation = 5000
-        empirical_distributions = np.zeros([10, 10, 2])
-        self.assertTrue(np.sum(np.abs(empirical_distributions)) == 0)
-        mf_random.synergy_random_multiprocessing(disease_prevalence, phenotype_prob,
-                                     sample_per_simulation, 0,
-                                                 empirical_distributions)
-        self.assertTrue(np.sum(np.abs(empirical_distributions)) > 0)
-
-
     def test_serializing_instance(self):
         cases = sum(self.d)
         with open(path.join(self.tempdir, 'test_serializing.obj'), 'wb') as \
@@ -113,46 +98,15 @@ class TestMFRandom(unittest.TestCase):
 
     def test_SynergyRandomiser(self):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)
+        print(self.heart_failure.m1)
+        print(self.heart_failure.m2)
         p_matrix = randomiser.p_value(sampling=100)
+        M = p_matrix.shape[0]
         print(p_matrix)
-
-    def test_multiprocessing(self):
-        start = datetime.datetime.now()
-        np.random.seed(2)
-        M = 20
-        disease_prevalence = 0.3
-        phenotype_prob = np.random.uniform(0, 1, M)
-        sample_per_simulation = 5000
-        simulations = 5
-        S_distribution = np.zeros([M, M, simulations])
-        workers = []
-        for i in np.arange(simulations):
-            workers.append(multiprocessing.Process(
-                target=mf_random.synergy_random_multiprocessing,
-                args=(disease_prevalence, phenotype_prob,sample_per_simulation,
-                      i, S_distribution)))
-        for i in np.arange(simulations):
-            workers[i].start()
-
-        for i in np.arange(simulations):
-            workers[i].join()
-
-        end = datetime.datetime.now()
-        duration = end - start
-        print("time for multiprocessing: {} ".format(duration.total_seconds()))
-
-        start = datetime.datetime.now()
-        S_distribution = np.zeros([M, M, simulations])
-        for i in np.arange(simulations):
-            print('start simulation: {}'.format(i))
-            S_distribution[:, :, i] = mf_random.synergy_random(disease_prevalence,
-                                                       phenotype_prob,
-                                                     sample_per_simulation)
-        end = datetime.datetime.now()
-        duration = end - start
-        print("time for non-multiprocessing: {} ".format(
-            duration.total_seconds()))
-
+        print(np.diagonal(p_matrix))
+        print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
+        self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
+                        (M * (M - 1) / 2))
 
 
 if __name__ == '__main__':
