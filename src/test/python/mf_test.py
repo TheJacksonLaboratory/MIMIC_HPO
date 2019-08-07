@@ -34,6 +34,16 @@ class TestMF(unittest.TestCase):
                                        [3,1,1,2],
                                        [3,1,1,2]]).tolist())
 
+    def test_summarize_diagnosis_phenotype2(self):
+        np.random.seed(799)
+        P = np.random.randint(0, 2, 24).reshape([6, 4])
+        d = np.random.randint(0, 2, 6)
+        s1 = mf.summarize_diagnosis_phenotype(P, d)
+        self.assertEqual(s1.tolist(), np.array([[2,2,0,2],
+                                       [1,3,1,1],
+                                       [2,1,0,3],
+                                       [0,2,2,2]]).tolist())
+
 
     def test_summarize_diagnosis_phenotype_pair(self):
         s2 = mf.summarize_diagnosis_phenotype_pair(self.P, self.d)
@@ -80,17 +90,29 @@ class TestMF(unittest.TestCase):
     def test_mf_diagnosis_phenotype(self):
         case_N = 4
         control_N = 3
-        m1 = np.array([int(i) for i in '3. 1. 1. 2. 2. 1. 2. 2. 3. 1. 1. 2. 3. 1. 1. 2'.split('. ')]).reshape([4, 4])
+        m1 = np.array([[3,1,1,2],
+                       [2,1,2,2],
+                       [3,1,1,2],
+                       [3,1,1,2]])
         I,_,_ = mf.mf_diagnosis_phenotype(m1, case_N, control_N)
-        temp = 3/7 * math.log2(21/16) + 1/7 * math.log2(7/12) + 1/7 * math.log2(7/12) + 2/7 * math.log2(14/9)
-        self.assertAlmostEqual(I[0], temp)
-        temp = 2/7 * math.log2(14/12) + 1/7 * math.log2(7/9) + 2/7 * math.log2(14/16) + 2/7 * math.log2(14/12)
-        self.assertAlmostEqual(I[1], temp)
+        I_HP1 = 3/7 * math.log2(21/16) + 1/7 * math.log2(7/12) + 1/7 * \
+                 math.log2(7/12) + 2/7 * math.log2(14/9)
+        I_HP2 = 2/7 * math.log2(14/12) + 1/7 * math.log2(7/9) + 2/7 * math.log2(
+            14/16) + 2/7 * math.log2(14/12)
+        I_HP3 = 3/7 * math.log2(21/16) + 1/7 * math.log2(7/12) + 1/7 * \
+                 math.log2(7/12) + 2/7 * math.log2(14/9)
+        I_HP4 = 3/7 * math.log2(21/16) + 1/7 * math.log2(7/12) + 1/7 * \
+                 math.log2(7/12) + 2/7 * math.log2(14/9)
+        np.testing.assert_almost_equal(I, [I_HP1, I_HP2, I_HP3,
+                                                  I_HP4])
 
     def test_mf_diagnosis_phenotype_pair(self):
         case_N = 4
         control_N = 3
-        m1 = np.array([int(i) for i in '3. 1. 1. 2. 2. 1. 2. 2. 3. 1. 1. 2. 3. 1. 1. 2'.split('. ')]).reshape([4, 4])
+        m1 = np.array([[3, 1, 1, 2],
+                       [2, 1, 2, 2],
+                       [3, 1, 1, 2],
+                       [3, 1, 1, 2]])
         m2 = np.array([int(i) for i in '''
                 3. 1. 0. 0. 0. 0. 1. 2. 1. 1. 2. 0. 1. 0. 0. 2. 2. 0. 1. 1. 1. 1. 0. 1.
                 3. 0. 0. 1. 0. 1. 1. 1. 1. 1. 1. 0. 2. 0. 0. 2. 2. 1. 0. 0. 0. 0. 2. 2.
@@ -103,6 +125,24 @@ class TestMF(unittest.TestCase):
                                1/7 * math.log2(7/12) +
                                1/7 * math.log2(7/12) +
                                2/7 * math.log2(14/9))
+        self.assertAlmostEqual(II[0,1], 1/7 * math.log2(7/8) + 1/7 *
+                               math.log2(7/6) + 2/7 * math.log2(14/8) + 1/7 *
+                               math.log2(7/4) + 2/7 * math.log2(14/6))
+        self.assertAlmostEqual(II[0,2], 2/7 * math.log2(14/8) + 1/7 *
+                               math.log2(7/8) + 1/7 * math.log2(7/6) + 1/7 *
+                               math.log2(7/8) + 1/7 * math.log2(7/6) + 1/7 *
+                               math.log2(7/3))
+        self.assertAlmostEqual(II[0,3], 3/7 * math.log2(21/12) + 1/7 *
+                               math.log2(7/3) + 1/7 * math.log2(7/3) + 1/7 *
+                               math.log2(7/8) + 1/7 * math.log2(7/6))
+        self.assertAlmostEqual(II[1,2], 2/7 * math.log2(14/8) + 1/7 *
+                               math.log2(7/3) + 1/7 * math.log2(7/8) + 1/7 *
+                               math.log2(7/6) + 1/7 * math.log2(7/8) + 1/7 *
+                               math.log2(7/6))
+        self.assertAlmostEqual(II[1,3], 1/7 * math.log2(7/4) + 1/7 *
+                               math.log2(7/8) + 1/7 * math.log2(7/6) + 2/7 *
+                               math.log2(14/12) + 1/7 * math.log2(7/9) + 1/7
+                               * math.log2(7/3))
         self.assertAlmostEqual(II[2,3], 2/7 * math.log2(14/12) +
                                1/7 * math.log2(7/9) +
                                1/7 * math.log2(7/4) +
@@ -115,11 +155,10 @@ class TestMF(unittest.TestCase):
                        [0.4, 0.1, 0.0],
                        [0.2, 0.0, 0.3]])
         S = mf.synergy(I, II)
-        self.assertAlmostEqual(S.all(),
+        np.testing.assert_almost_equal(S,
                                np.array([[-0.1, 0.1, -0.2],
                                          [0.1, -0.3, -0.5],
-                                         [-0.2, -0.5, -0.3]]).all(),
-                               delta=0.001)
+                                         [-0.2, -0.5, -0.3]]))
 
     def test_class_constructor(self):
         disease_name = 'MONDO:heart failure'

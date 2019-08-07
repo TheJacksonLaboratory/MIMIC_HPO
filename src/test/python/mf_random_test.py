@@ -16,7 +16,7 @@ class TestMFRandom(unittest.TestCase):
         phenotype_list = ['HP:' + str(i + 1) for i in np.arange(M)]
         self.heart_failure = mf.Synergy(disease='heart failure',
                                    phenotype_list=phenotype_list)
-        np.random.seed(1)
+        np.random.seed(11)
         self.d = np.random.randint(0, 2, N)
         self.P = np.random.randint(0, 2, M * N).reshape([N, M])
 
@@ -66,8 +66,7 @@ class TestMFRandom(unittest.TestCase):
                          'failed')
 
         self.assertRaises(ValueError, lambda: mf_random.p_value_estimate(query,
-                                                                  ordered,
-                                                                  alternative='e'))
+                                            ordered, alternative='e'))
 
     def test_synergy_random(self):
         disease_prevalence = 0.4
@@ -75,11 +74,7 @@ class TestMFRandom(unittest.TestCase):
         sample_per_simulation = 5000
         S = mf_random.synergy_random(disease_prevalence, phenotype_prob,
                               sample_per_simulation)
-        # self.assertAlmostEqual(S.astype(np.float32).all(),
-        #                        np.zeros(S.shape).astype(np.float32).all(),
-        #                        delta=0.001)
-        self.assertAlmostEqual(S[0, 0], 0.0, delta=0.001)
-        self.assertAlmostEqual(S[5, 5], 0.0, delta=0.001)
+        np.testing.assert_almost_equal(S, np.zeros(S.shape), decimal=3)
 
     def test_serializing_instance(self):
         cases = sum(self.d)
@@ -98,13 +93,13 @@ class TestMFRandom(unittest.TestCase):
 
     def test_SynergyRandomiser(self):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)
-        print(self.heart_failure.m1)
-        print(self.heart_failure.m2)
+        # print(self.heart_failure.m1)
+        # print(self.heart_failure.m2)
         p_matrix = randomiser.p_value(sampling=100)
         M = p_matrix.shape[0]
-        print(p_matrix)
-        print(np.diagonal(p_matrix))
-        print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
+        # print(p_matrix)
+        # print(np.diagonal(p_matrix))
+        # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
         self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
                         (M * (M - 1) / 2))
 

@@ -160,7 +160,8 @@ def summarize_diagnosis(d):
 
 def summarize_diagnosis_phenotype(P, d):
     """
-    Calculate the summary statistics of diagnosis*phenotype joint distributions
+    Calculate the summary statistics of (phenotype*diagnosis) joint
+    distributions
     :param P: a N x M matrix representing the phenotype profiles of N
     samples. One row represents one sample. Columns represent separate
     phenotypes. Values are 0 (corresponding phenotype is not observed for
