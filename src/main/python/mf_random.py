@@ -14,7 +14,7 @@ class SynergyRandomizer:
         self.S = synergy.pairwise_synergy()
         print('randomizer initiated')
 
-    def p_value(self, sampling=100):
+    def p_value(self, per_simulation=None, simulations=100):
         """
         Estimate p values for each observed phenotype pair by comparing the
         observed synergy score with empirical distributions created by random
@@ -25,11 +25,11 @@ class SynergyRandomizer:
         TOTAL = self.case_N + self.control_N
         diag_prob = self.case_N / TOTAL
         phenotype_prob = np.sum(self.m1[:, 0:1], axis=1) / TOTAL
-        sample_per_simulation = TOTAL
-        simulations = sampling
+        if per_simulation is None:
+            per_simulation = TOTAL
         empirical_distribution = create_empirical_distribution(diag_prob,
                                                                phenotype_prob,
-                                                               sample_per_simulation,
+                                                               per_simulation,
                                                                simulations)
         return p_value_estimate(self.S, empirical_distribution, 'two.sided')
 

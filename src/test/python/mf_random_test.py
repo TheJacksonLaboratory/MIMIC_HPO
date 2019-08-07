@@ -95,7 +95,7 @@ class TestMFRandom(unittest.TestCase):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)
         # print(self.heart_failure.m1)
         # print(self.heart_failure.m2)
-        p_matrix = randomiser.p_value(sampling=100)
+        p_matrix = randomiser.p_value(simulations=100)
         M = p_matrix.shape[0]
         # print(p_matrix)
         # print(np.diagonal(p_matrix))
