@@ -1,5 +1,12 @@
 import numpy as np
 import pandas as pd
+import os
+import logging.config
+
+log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'log_config.conf')
+logging.config.fileConfig(log_file_path)
+logger = logging.getLogger(__name__)
 
 
 class Synergy:
@@ -235,6 +242,7 @@ def summarize_diagnosis_phenotype_pair(P, d):
     ppd = np.concatenate((ppd, np.sum(pp * (1 - d), axis=0).reshape([M, M, 1])), axis=-1)
 
     return ppd
+
 
 def summarize(P, d, current=None):
     """

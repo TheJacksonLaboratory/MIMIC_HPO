@@ -1,18 +1,28 @@
 import numpy as np
 import mf
 import multiprocessing
+import os
+import os.path
+import logging.config
+
+
+log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'log_config.conf')
+logging.config.fileConfig(log_file_path)
+logger = logging.getLogger(__name__)
 
 
 class SynergyRandomizer:
 
-    def __init__(self, synergy, logger=None):
+    def __init__(self, synergy):
         self.logger = logger
         self.case_N = synergy.case_N
         self.control_N = synergy.control_N
         self.m1 = synergy.m1
         self.m2 = synergy.m2
         self.S = synergy.pairwise_synergy()
-        print('randomizer initiated')
+        self.empirical_distribution=np.zeros([1, 1])
+        logger.info('randomizer initiated')
 
     def p_value(self, per_simulation=None, simulations=100):
         """
@@ -27,11 +37,13 @@ class SynergyRandomizer:
         phenotype_prob = np.sum(self.m1[:, 0:1], axis=1) / TOTAL
         if per_simulation is None:
             per_simulation = TOTAL
-        empirical_distribution = create_empirical_distribution(diag_prob,
+        self.empirical_distribution = create_empirical_distribution(diag_prob,
                                                                phenotype_prob,
                                                                per_simulation,
-                                                               simulations)
-        return p_value_estimate(self.S, empirical_distribution, 'two.sided')
+                                                               simulations,
+                                                               self.logger)
+        return p_value_estimate(self.S, self.empirical_distribution,
+                                'two.sided')
 
 
 def p_value_estimate(observed, empirical_distribution, alternative='two.sided'):
@@ -88,7 +100,8 @@ def matrix_searchsorted(ordered, query, side='left'):
 
 
 def create_empirical_distribution(diag_prevalence, phenotype_prob,
-                                  sample_per_simulation, SIMULATION_SIZE):
+                                  sample_per_simulation, SIMULATION_SIZE,
+                                  logger=None):
     """
     Create empirical distributions for each phenotype pair.
     :param diag_case_prob: a scalar for the prevalence of the diagnosis under
@@ -99,6 +112,8 @@ def create_empirical_distribution(diag_prevalence, phenotype_prob,
     :param SIMULATION_SIZE: total simulations
     :return: a M x M x SIMULATION_SIZE matrix for the empirical distributions
     """
+    if logger is not None:
+        logger.info('number of CPU: {}'.format(os.cpu_count()))
     workers = multiprocessing.Pool()
     results = [workers.apply_async(synergy_random, args=(diag_prevalence,
                                                         phenotype_prob,
@@ -113,7 +128,8 @@ def create_empirical_distribution(diag_prevalence, phenotype_prob,
     return empirical_distribution
 
 
-def synergy_random(disease_prevalence, phenotype_prob, sample_size, seed=None):
+def synergy_random(disease_prevalence, phenotype_prob, sample_size,
+                   seed=None):
     """
     Simulate disease condition and phenotype matrix with provided
     probability distributions and calculate the resulting synergy.
@@ -124,26 +140,26 @@ def synergy_random(disease_prevalence, phenotype_prob, sample_size, seed=None):
     :return: a M x M matrix representing the pairwise synergy from the
     simulated disease conditions and phenotype profiles.
     """
-    if (seed is not None):
+    if seed is not None:
         np.random.seed(seed)
     mocked = mf.Synergy(disease='mocked', phenotype_list=np.arange(len(
         phenotype_prob)))
-    BATCH_SIZE = 1000
+    BATCH_SIZE = 100
     M = len(phenotype_prob)
     total_batches = int(np.ceil(sample_size / BATCH_SIZE))
+    logger.debug('start simulation: {} '.format(seed))
     for i in np.arange(total_batches):
-        if (i == total_batches - 1):
+        logger.debug(f'add batch {i} -> simulation {seed}')
+        if i == total_batches - 1:
             actual_batch_size = sample_size - BATCH_SIZE * (i - 1)
         else:
             actual_batch_size = BATCH_SIZE
-        d = np.random.choice([0,1], actual_batch_size, replace=True, p =
-                             [1 - disease_prevalence,
-                              disease_prevalence])
+        d = (np.random.uniform(0, 1, actual_batch_size) <
+             disease_prevalence).astype(int)
         # the following is faster than doing choice with loops
         P = np.random.uniform(0, 1, actual_batch_size*M).reshape([
             actual_batch_size, M])
-        ones_idx = (P < phenotype_prob.reshape([1, M]))
-        P = np.zeros_like(P)
-        P[ones_idx] = 1
+        P = (P < phenotype_prob.reshape([1, M])).astype(int)
         mocked.add_batch(P, d)
+    logger.debug('end simulation {}'.format(seed))
     return mocked.pairwise_synergy()
