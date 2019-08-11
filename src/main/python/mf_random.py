@@ -15,16 +15,38 @@ logger = logging.getLogger(__name__)
 class SynergyRandomizer:
 
     def __init__(self, synergy):
-        self.logger = logger
         self.case_N = synergy.case_N
         self.control_N = synergy.control_N
         self.m1 = synergy.m1
         self.m2 = synergy.m2
         self.S = synergy.pairwise_synergy()
         self.empirical_distribution=np.zeros([1, 1])
+        self.frequency_braket = np.array([0.001, 0.01, 0.05, 0.1, 0.3, 0.4, 0.6, 0.7, 0.8,
+                            0.9])
         logger.info('randomizer initiated')
 
-    def p_value(self, per_simulation=None, simulations=100):
+    def simulate(self, per_simulation=None, simulations=100, cpu=None):
+        TOTAL = self.case_N + self.control_N
+        diag_prob = self.case_N / TOTAL
+        phenotype_prob = np.sum(self.m1[:, 0:1], axis=1) / TOTAL
+        if per_simulation is None:
+            per_simulation = TOTAL
+        self.empirical_distribution = create_empirical_distribution(diag_prob,
+                 phenotype_prob, per_simulation, simulations, cpu)
+
+    def simulate_approxi(self, phenotype_bucket=None,
+                         per_simulation=None, simulations=100):
+        TOTAL = self.case_N + self.control_N
+        diag_prob = self.case_N / TOTAL
+        if phenotype_bucket is not None:
+            # create 10 buckets
+            self.phphenotype_bucket = phenotype_bucket
+        if per_simulation is None:
+            per_simulation = TOTAL
+        self.empirical_distribution = create_empirical_distribution(diag_prob,
+              phenotype_bucket, per_simulation, simulations)
+
+    def p_value(self, adjust=None):
         """
         Estimate p values for each observed phenotype pair by comparing the
         observed synergy score with empirical distributions created by random
@@ -32,18 +54,49 @@ class SynergyRandomizer:
         :param sampling: sampling times
         :return: p value matrix
         """
-        TOTAL = self.case_N + self.control_N
-        diag_prob = self.case_N / TOTAL
-        phenotype_prob = np.sum(self.m1[:, 0:1], axis=1) / TOTAL
-        if per_simulation is None:
-            per_simulation = TOTAL
-        self.empirical_distribution = create_empirical_distribution(diag_prob,
-                                                               phenotype_prob,
-                                                               per_simulation,
-                                                               simulations,
-                                                               self.logger)
-        return p_value_estimate(self.S, self.empirical_distribution,
+        # TODO: this is like Bonferroni, but not exactly
+        if adjust == 'Bonferroni':
+            test_times = len(np.triu(self.S))
+            adjusted_S = self.S / test_times
+        else:
+            adjusted_S = self.S
+        return p_value_estimate(adjusted_S, self.empirical_distribution,
                                 'two.sided')
+
+    def p_value_approxi(self, side='two.sided'):
+        TOTAL = self.case_N + self.control_N
+        M = self.S.shape[0]
+        SIMULATION_TIMES = self.empirical_distribution.shape[2]
+        ordered = np.sort(self.empirical_distribution, axis=-1)
+        center = np.mean(self.empirical_distribution, axis=-1)
+        # find the frequency of each phenotype
+        p_freq = np.sum(self.m1, axis=1) / TOTAL
+        assert len(p_freq) == M
+        # find index for each phenotype
+        for i in np.arange(M):
+            # find closest position in the bucket for each phenotype
+            position_in_bucket = closest_index(p_freq[i], self.phphenotype_bucket)
+        p = np.zeros([M, M])
+        for i in np.arange(M):
+            for j in np.arange(M):
+                # which distribution to look at
+                target_dist = ordered[position_in_bucket[i],
+                                      position_in_bucket[j]]
+                observed = self.S[i, j]
+                if side == 'two.sided':
+                    p[i, j] = np.searchsorted(target_dist,
+                              center - np.abs(center - observed), 'left') / \
+                              SIMULATION_TIMES + \
+                    1 - np.searchsorted(target_dist,
+                    center + np.abs(center - observed)) / SIMULATION_TIMES
+                elif side == 'left':
+                    p[i, j] = np.searchsorted(target_dist, observed, 'right')\
+                              / SIMULATION_TIMES
+                else:
+                    p[i, j] = 1 - np.searchsorted(target_dist, observed,
+                                                  'left') / SIMULATION_TIMES
+
+        return p
 
 
 def p_value_estimate(observed, empirical_distribution, alternative='two.sided'):
@@ -101,7 +154,7 @@ def matrix_searchsorted(ordered, query, side='left'):
 
 def create_empirical_distribution(diag_prevalence, phenotype_prob,
                                   sample_per_simulation, SIMULATION_SIZE,
-                                  logger=None):
+                                  cpu=None):
     """
     Create empirical distributions for each phenotype pair.
     :param diag_case_prob: a scalar for the prevalence of the diagnosis under
@@ -112,9 +165,11 @@ def create_empirical_distribution(diag_prevalence, phenotype_prob,
     :param SIMULATION_SIZE: total simulations
     :return: a M x M x SIMULATION_SIZE matrix for the empirical distributions
     """
-    if logger is not None:
-        logger.info('number of CPU: {}'.format(os.cpu_count()))
-    workers = multiprocessing.Pool()
+    logger.info('number of CPU: {}'.format(os.cpu_count()))
+    if cpu is None:
+        cpu = os.cpu_count()
+    workers = multiprocessing.Pool(cpu)
+    logger.info(f'number of workers created: {cpu}')
     results = [workers.apply_async(synergy_random, args=(diag_prevalence,
                                                         phenotype_prob,
                                                         sample_per_simulation,
@@ -163,3 +218,38 @@ def synergy_random(disease_prevalence, phenotype_prob, sample_size,
         mocked.add_batch(P, d)
     logger.debug('end simulation {}'.format(seed))
     return mocked.pairwise_synergy()
+
+
+def closest_index(query, ordered_positivelist, transform='log10'):
+    assert (ordered_positivelist > 0).all()
+    if transform == 'log10':
+        adjust = 0.00001
+        query = np.log10(query + adjust)
+        ordered_positivelist = np.log10(ordered_positivelist)
+
+    if query <= ordered_positivelist[0]:
+        return 0
+    elif query >= ordered_positivelist[-1]:
+        return len(ordered_positivelist)
+    else:
+        for i in np.arange(0, len(ordered_positivelist) - 1):
+            if query > ordered_positivelist[i + 1]:
+                continue
+            print('query {}'.format(query))
+            to_left = query - ordered_positivelist[i]
+            print('distance to left: {}'.format(to_left))
+            to_right = ordered_positivelist[i + 1] - query
+            print('distance to right: {}'.format(to_right))
+            if to_left <= to_right:
+                return i
+            else:
+                return i + 1
+
+
+if __name__=='__main__':
+    phenotype_p = np.array([0.001, 0.01, 0.05, 0.1, 0.3, 0.4, 0.6, 0.7, 0.8,
+                            0.9])
+    N = 5000
+    dist = create_empirical_distribution(0.3, phenotype_p,
+                                  1000, N)
+    print(np.sum(dist, axis=-1) / N)

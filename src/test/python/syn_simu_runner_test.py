@@ -38,20 +38,23 @@ class TestSynSimuRunner(unittest.TestCase):
         with open(self.f, 'rb') as f:
             synergies = pickle.load(f)
         self.assertEqual(len(synergies), 2)
-        syn_simu_runner.run(synergies, per_simulation=1000, simulations=100,
-                            verbose=True, dir=self.temppath)
+        syn_simu_runner.simulate(synergies, per_simulation=1000, simulations=100,
+                                 verbose=True, dir=self.temppath, job_id=1)
+        # print(os.listdir(self.temppath))
+        # self.assertTrue(
+        #     os.path.exists(os.path.join(self.temppath, 'D1_p_value_.obj')))
         self.assertTrue(
-            os.path.exists(os.path.join(self.temppath, 'D1_p_value_.obj')))
+            os.path.exists(os.path.join(self.temppath,
+                                        'D1_1_distribution.obj')))
+        # self.assertTrue(
+        #     os.path.exists(os.path.join(self.temppath, 'D2_p_value_.obj')))
         self.assertTrue(
-            os.path.exists(os.path.join(self.temppath, 'D1_distribution.obj')))
-        self.assertTrue(
-            os.path.exists(os.path.join(self.temppath, 'D2_p_value_.obj')))
-        self.assertTrue(
-            os.path.exists(os.path.join(self.temppath, 'D2_distribution.obj')))
-        with open(os.path.join(self.temppath, 'D1_p_value_.obj'), 'rb') as f1:
-            p = pickle.load(f1)
-            self.assertTrue(np.sum(p < 0.05) / len(p.flat) < 0.1,
-                            'randomly generated data has too much synergy')
+            os.path.exists(os.path.join(self.temppath,
+                                        'D2_1_distribution.obj')))
+        # with open(os.path.join(self.temppath, 'D1_p_value_.obj'), 'rb') as f1:
+        #     p = pickle.load(f1)
+        #     self.assertTrue(np.sum(p < 0.05) / len(p.flat) < 0.1,
+        #                     'randomly generated data has too much synergy')
 
 
 if __name__ == '__main__':

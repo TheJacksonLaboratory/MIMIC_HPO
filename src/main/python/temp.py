@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os.path
+import pickle
 
 
 def result():
@@ -23,6 +25,18 @@ def result():
 
     plt.hist(syn, bins=20)
     plt.show()
+
+
+def read_distribution(dir, disease):
+    simulations = []
+    for i in np.arange(500):
+        path = os.path.join(dir, '428_' + str(i) + '_distribution.obj')
+        if os.path.exists(path):
+            with open(path, 'rb') as f:
+                simulation = pickle.load(f)
+                simulations.append(simulation)
+    return np.concatenate(tuple(simulations), axis=-1)
+
 
 
 def main():

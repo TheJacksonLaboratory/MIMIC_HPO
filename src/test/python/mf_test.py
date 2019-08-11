@@ -106,6 +106,17 @@ class TestMF(unittest.TestCase):
         np.testing.assert_almost_equal(I, [I_HP1, I_HP2, I_HP3,
                                                   I_HP4])
 
+    def test_mf_diagnosis_phenotype_random(self):
+        N = 100000
+        M = 10
+        d = np.random.randint(0, 2, N)
+        P = np.random.randint(0, 2, M * N).reshape([N, M])
+        m1, m2, case_N, control_N = mf.summarize(P, d)
+        I, _, _ = mf.mf_diagnosis_phenotype(m1, case_N, control_N)
+        np.testing.assert_almost_equal(I, np.zeros_like(I), decimal=4,
+                                       err_msg='mutual information of two '
+                                               'random variables is not zero')
+
     def test_mf_diagnosis_phenotype_pair(self):
         case_N = 4
         control_N = 3
