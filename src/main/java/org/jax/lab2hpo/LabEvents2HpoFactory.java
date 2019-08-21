@@ -1,5 +1,10 @@
 package org.jax.lab2hpo;
 
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
 import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.jax.Entity.LabEvent;
@@ -14,11 +19,6 @@ import org.monarchinitiative.loinc2hpo.loinc.LoincEntry;
 import org.monarchinitiative.loinc2hpo.loinc.LoincId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 /**
  * Class that does the heavy lifting in this project: convert a labevent into HPO.
@@ -154,7 +154,7 @@ public class LabEvents2HpoFactory {
         //System.out.println(labEvent.getItem_id() + "\t" + labEvent.getValue() + "\t" + labEvent.getValue_num() + "\t" + labEvent.getFlag());
         //we try to parse the value
         Optional<String> code = ordTextualResult(labEvent);
-        if (!code.isPresent() && labEvent.getValue_num() != Double.MAX_VALUE && labSummary != null) {
+        if (!code.isPresent() && labEvent.getValue_num() != null && labSummary != null) {
             System.out.println("Ord having numeric result: " + labEvent.getItem_id() + "\t" + labEvent.getValue() + "\t" + labEvent.getValue_num() + "\t" + labEvent.getFlag());
             return Optional.empty();
         }
@@ -211,10 +211,16 @@ public class LabEvents2HpoFactory {
         }
         double min_normal = normalRange.getMin();
         double max_normal = normalRange.getMax();
-        double observed_value = labEvent.getValue_num();
+        
+        if (labEvent.getValue_num() == null) {
+        	return Optional.empty();
+        }
+
+        Double observed_value = Double.valueOf(labEvent.getValue_num());
+
         String flag = labEvent.getFlag();
         String code = null;
-
+        
         if (observed_value < min_normal) {
             code = "L";
         } else if (observed_value > max_normal) {
