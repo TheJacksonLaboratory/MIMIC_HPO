@@ -35,12 +35,15 @@ def read_distribution(dir, disease):
             with open(path, 'rb') as f:
                 simulation = pickle.load(f)
                 simulations.append(simulation)
+
     return np.concatenate(tuple(simulations), axis=-1)
 
 
 
 def main():
-    result()
+    path = '/Users/zhangx/git/MIMIC_HPO/src/main/resources/simulation_output'
+    m = read_distribution(path, '428')
+    print(m.shape)
 
 
 if __name__ == '__main__':

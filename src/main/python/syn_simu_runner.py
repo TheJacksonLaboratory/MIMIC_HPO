@@ -79,62 +79,66 @@ def simulate(args):
     cpu = args.cpu
     job_id = args.job_id
 
-    print('run simulate command')
-    print(args)
+    with open(input_path, 'rb') as in_file:
+        disease_synergy_map = pickle.load(in_file)
+        logger.info('number of diseases to run simulations for {}'.format(
+            len(disease_synergy_map)))
 
-    # with open(input_path, 'rb') as in_file:
-    #     disease_synergy_map = pickle.load(in_file)
-    #     logger.info('number of diseases to run simulations for {}'.format(
-    #         len(disease_synergy_map)))
-    #
-    # if job_id is None:
-    #     job_suffix = ''
-    # else:
-    #     job_suffix = '_' + str(job_id)
-    #
-    # for disease, synergy in disease_synergy_map.items():
-    #     # if disease != '428':
-    #     #     continue
-    #     randmizer = SynergyRandomizer(synergy)
-    #     if verbose:
-    #         print('start calculating p values for {}'.format(disease))
-    #     randmizer.simulate(per_simulation, simulations, cpu)
-    #     # p = randmizer.p_value()
-    #     # p_filepath = os.path.join(dir, disease + '_p_value_.obj')
-    #     # with open(p_filepath, 'wb') as f:
-    #     #     pickle.dump(p, file=f, protocol=2)
-    #
-    #     distribution_file_path = os.path.join(dir, disease + job_suffix +
-    #                                           '_distribution.obj')
-    #     with open(distribution_file_path, 'wb') as f2:
-    #         pickle.dump(randmizer.empirical_distribution, file=f2, protocol=2)
-    #
-    #     if verbose:
-    #         print('saved current batch of simulations {} for {}'.format(
-    #             job_id, disease))
+    if job_id is None:
+        job_suffix = ''
+    else:
+        job_suffix = '_' + str(job_id)
+
+    for disease, synergy in disease_synergy_map.items():
+        if disease != '428':
+            continue
+        randmizer = SynergyRandomizer(synergy)
+        if verbose:
+            print('start calculating p values for {}'.format(disease))
+        randmizer.simulate(per_simulation, simulations, cpu, job_id)
+        # p = randmizer.p_value()
+        # p_filepath = os.path.join(dir, disease + '_p_value_.obj')
+        # with open(p_filepath, 'wb') as f:
+        #     pickle.dump(p, file=f, protocol=2)
+
+        distribution_file_path = os.path.join(dir, disease + job_suffix +
+                                              '_distribution.obj')
+        with open(distribution_file_path, 'wb') as f2:
+            pickle.dump(randmizer.empirical_distribution, file=f2, protocol=2)
+
+        if verbose:
+            print('saved current batch of simulations {} for {}'.format(
+                job_id, disease))
+
 
 def estimate(args):
     input_path = args.input_path
     dist_path = args.dist_path
-    out_path = args.out_path
+    out_path = args.out_dir
 
     print(args)
-    # with open(input_path, 'rb') as in_file:
-    #     disease_synergy_map = pickle.load(in_file)
-    #     logger.info('number of diseases to run simulations for {}'.format(
-    #         len(disease_synergy_map)))
-    #
-    # p_map = {}
-    # for disease, synergy in disease_synergy_map.items():
-    #     if disease != '428':
-    #         continue
-    #     randmizer = SynergyRandomizer(synergy)
-    #     empirical_distribution = load_distribution(dir, disease)
-    #     randmizer.empirical_distribution = empirical_distribution
-    #     p = randmizer.p_value()
-    #     p_map[disease] = p
-    # return p_map
+    with open(input_path, 'rb') as in_file:
+        disease_synergy_map = pickle.load(in_file)
+        logger.info('number of diseases to run simulations for {}'.format(
+            len(disease_synergy_map)))
 
+    p_map = {}
+    for disease, synergy in disease_synergy_map.items():
+        if disease != '428':
+            continue
+        randmizer = SynergyRandomizer(synergy)
+        empirical_distribution = load_distribution(dist_path, disease)
+        print('empirical simulation size: ' +
+              str(empirical_distribution.shape[2]))
+        print(empirical_distribution[0,0,:])
+        randmizer.empirical_distribution = empirical_distribution
+        p = randmizer.p_value()
+        p_map[disease] = p
+
+    p_map_path = os.path.join(out_path, 'p_value_map.obj')
+    with open(p_map_path, 'wb') as f:
+        pickle.dump(p_map, f, protocol=2)
+    return p_map
 
 
 def load_distribution(dir, disease_prefix):
@@ -146,7 +150,8 @@ def load_distribution(dir, disease_prefix):
     """
     simulations = []
     for i in np.arange(500):
-        path = os.path.join(dir, disease_prefix + str(i) + '_distribution.obj')
+        path = os.path.join(dir, disease_prefix + '_' + str(i) +
+                            '_distribution.obj')
         if os.path.exists(path):
             with open(path, 'rb') as f:
                 simulation = pickle.load(f)

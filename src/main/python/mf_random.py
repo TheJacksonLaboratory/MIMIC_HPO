@@ -25,14 +25,15 @@ class SynergyRandomizer:
                             0.9])
         logger.info('randomizer initiated')
 
-    def simulate(self, per_simulation=None, simulations=100, cpu=None):
+    def simulate(self, per_simulation=None, simulations=100, cpu=None,
+                 job_id=0):
         TOTAL = self.case_N + self.control_N
         diag_prob = self.case_N / TOTAL
         phenotype_prob = np.sum(self.m1[:, 0:1], axis=1) / TOTAL
         if per_simulation is None:
             per_simulation = TOTAL
         self.empirical_distribution = create_empirical_distribution(diag_prob,
-                 phenotype_prob, per_simulation, simulations, cpu)
+                 phenotype_prob, per_simulation, simulations, cpu, job_id)
 
     def simulate_approxi(self, phenotype_bucket=None,
                          per_simulation=None, simulations=100):
@@ -154,7 +155,7 @@ def matrix_searchsorted(ordered, query, side='left'):
 
 def create_empirical_distribution(diag_prevalence, phenotype_prob,
                                   sample_per_simulation, SIMULATION_SIZE,
-                                  cpu=None):
+                                  cpu=None, job_id=0):
     """
     Create empirical distributions for each phenotype pair.
     :param diag_case_prob: a scalar for the prevalence of the diagnosis under
@@ -173,7 +174,7 @@ def create_empirical_distribution(diag_prevalence, phenotype_prob,
     results = [workers.apply_async(synergy_random, args=(diag_prevalence,
                                                         phenotype_prob,
                                                         sample_per_simulation,
-                                                        i))
+                                                        i + job_id*SIMULATION_SIZE))
          for i in np.arange(SIMULATION_SIZE)]
     workers.close()
     workers.join()
