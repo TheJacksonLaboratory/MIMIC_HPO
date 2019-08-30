@@ -151,6 +151,11 @@ class Synergy:
                                  ascending=False).reset_index(drop=True)
         return df
 
+    def pairwise_synergy_labeled_with_p_values(self, p_values):
+        df = self.pairwise_synergy_labeled()
+        df['p'] = p_values.flat
+        return df
+
 
 def summarize_diagnosis(d):
     """
