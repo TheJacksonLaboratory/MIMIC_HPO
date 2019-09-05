@@ -1,11 +1,9 @@
 package org.jax;
 
-import org.jax.command.HpoInferenceCmd;
-import org.jax.command.LabToHpoCmd;
-import org.jax.command.MimicCommand;
-import org.jax.command.SummarizeLabCmd;
+import org.jax.command.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 @Configuration
 public class AppConfig {
@@ -23,5 +21,10 @@ public class AppConfig {
     @Bean (name = "hpoInference")
     MimicCommand hpoInference(){
         return new HpoInferenceCmd();
+    }
+
+    @Bean (name = "textToHpo")
+    MimicCommand text2hpo(){
+        return new TextToHpoCmb();
     }
 }

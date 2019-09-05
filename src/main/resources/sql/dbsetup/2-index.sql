@@ -184,7 +184,7 @@ alter table MICROBIOLOGYEVENTS
       add index MICROBIOLOGYEVENTS_idx01 (SUBJECT_ID, HADM_ID),
       add index MICROBIOLOGYEVENTS_idx02 (CHARTDATE, CHARTTIME),
       add index MICROBIOLOGYEVENTS_idx03 (SPEC_ITEMID, ORG_ITEMID, AB_ITEMID);
-
+*/
 -- -------------
 -- NOTEEVENTS
 -- -------------
@@ -195,6 +195,9 @@ alter table NOTEEVENTS
       add index NOTEEVENTS_idx03 (CGID),
       add index NOTEEVENTS_idx05 (CATEGORY, DESCRIPTION);
 
+alter table NOTEEVENTS
+      add index NOTEEVENTS_idx06 (CATEGORY);
+/*
 -- --------------
 -- OUTPUTEVENTS
 -- --------------
@@ -211,7 +214,7 @@ alter table OUTPUTEVENTS
 -- PATIENTS
 -- -----------
 
--- Note that SUBJECT_ID is already indexed as it is unique
+-- NoteEvent that SUBJECT_ID is already indexed as it is unique
 
 alter table PATIENTS
       add index PATIENTS_idx01 (EXPIRE_FLAG);
