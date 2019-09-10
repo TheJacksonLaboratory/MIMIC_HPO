@@ -97,14 +97,14 @@
       <artifactId>loinc2hpo-core</artifactId>
       <version>${loinc2hpo.version}</version>
     </dependency>
+      <!--<dependency>-->
+          <!--<groupId>org.jax.uni_phenominer</groupId>-->
+          <!--<artifactId>uniphenominer-core</artifactId>-->
+          <!--<version>${uniphenominer.version}</version>-->
+      <!--</dependency>-->
       <dependency>
           <groupId>org.jax.uni_phenominer</groupId>
-          <artifactId>uniphenominer-core</artifactId>
-          <version>${uniphenominer.version}</version>
-      </dependency>
-      <dependency>
-          <groupId>org.jax.uni_phenominer</groupId>
-          <artifactId>uniphenominer-spring-boot-autoconfigure</artifactId>
+          <artifactId>uniphenominer-spring-boot-starter</artifactId>
           <version>${uniphenominer.version}</version>
       </dependency>
 

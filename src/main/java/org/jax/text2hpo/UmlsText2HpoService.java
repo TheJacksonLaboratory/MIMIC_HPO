@@ -1,5 +1,6 @@
 package org.jax.text2hpo;
 
+import org.jax.uni_phenominer.core.miner.metamap_local.MetaMapLocalHpoMiner;
 import org.jax.uni_phenominer.core.miner.metamap_webAPI.MetaMapHPOMiner;
 import org.jax.uni_phenominer.core.term.MinedTerm;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +16,12 @@ public class UmlsText2HpoService {
     @Autowired
     MetaMapHPOMiner metaMapHPOMiner;
 
+    @Autowired
+    MetaMapLocalHpoMiner metaMapLocalHpoMiner;
+
     public Set<PositionUnawareTextMinedTerm> minedTerms(String query){
         Set<PositionUnawareTextMinedTerm> uniqueTerms = new HashSet<>();
-        List<List<MinedTerm>> mineresults = metaMapHPOMiner.doMining(query);
+        List<List<MinedTerm>> mineresults = metaMapLocalHpoMiner.doMining(query);
         for (List<MinedTerm> list : mineresults){
             for (MinedTerm minedTerm : list){
                 PositionUnawareTextMinedTerm minedTermWithHpoId = new PositionUnawareTextMinedTerm(

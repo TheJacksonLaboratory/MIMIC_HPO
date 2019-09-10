@@ -13,6 +13,6 @@ public class TextToHpoCmb implements MimicCommand {
     @Override
     public void run() {
         System.out.println("run notes to hpo");
-        mimicRadiology2Hpo.note2hpo();
+        mimicRadiology2Hpo.note2hpo(10);
     }
 }

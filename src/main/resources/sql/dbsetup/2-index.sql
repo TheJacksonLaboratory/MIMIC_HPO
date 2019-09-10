@@ -197,6 +197,8 @@ alter table NOTEEVENTS
 
 alter table NOTEEVENTS
       add index NOTEEVENTS_idx06 (CATEGORY);
+alter table NOTEEVENTS
+      add index NOTEEVENTS_idx07 (CATEGORY, ROW_ID);
 /*
 -- --------------
 -- OUTPUTEVENTS
