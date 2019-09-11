@@ -3,11 +3,10 @@ package org.jax;
 import org.jax.command.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
 
 @Configuration
 public class AppConfig {
-	
+
     @Bean (name = "summarizeLab")
     MimicCommand summarizeLab(){
         return new SummarizeLabCmd();
@@ -24,7 +23,8 @@ public class AppConfig {
     }
 
     @Bean (name = "textToHpo")
-    MimicCommand text2hpo(){
-        return new TextToHpoCmb();
+    MimicCommand textToHpo(){
+        return new TextToHpoCmd();
     }
+
 }
