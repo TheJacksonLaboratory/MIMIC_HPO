@@ -1,15 +1,12 @@
 package org.jax;
 
-import org.jax.command.HpoInferenceCmd;
-import org.jax.command.LabToHpoCmd;
-import org.jax.command.MimicCommand;
-import org.jax.command.SummarizeLabCmd;
+import org.jax.command.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AppConfig {
-	
+
     @Bean (name = "summarizeLab")
     MimicCommand summarizeLab(){
         return new SummarizeLabCmd();
@@ -24,4 +21,10 @@ public class AppConfig {
     MimicCommand hpoInference(){
         return new HpoInferenceCmd();
     }
+
+    @Bean (name = "textToHpo")
+    MimicCommand textToHpo(){
+        return new TextToHpoCmd();
+    }
+
 }

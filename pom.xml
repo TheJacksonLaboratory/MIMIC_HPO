@@ -33,6 +33,9 @@
     <guava.version>27.1-jre</guava.version>
     <junit.jupiter.version>5.4.2</junit.jupiter.version>
     <loinc2hpo.version>1.1.6-SNAPSHOT</loinc2hpo.version>
+      <uniphenominer.version>0.0.1</uniphenominer.version>
+      <!--DO NOT CHANGE the http version-->
+      <httpclient.version>4.2</httpclient.version>
   </properties>
 
 
@@ -94,6 +97,28 @@
       <artifactId>loinc2hpo-core</artifactId>
       <version>${loinc2hpo.version}</version>
     </dependency>
+      <!--<dependency>-->
+          <!--<groupId>org.jax.uni_phenominer</groupId>-->
+          <!--<artifactId>uniphenominer-core</artifactId>-->
+          <!--<version>${uniphenominer.version}</version>-->
+      <!--</dependency>-->
+      <dependency>
+          <groupId>org.jax.uni_phenominer</groupId>
+          <artifactId>uniphenominer-spring-boot-starter</artifactId>
+          <version>${uniphenominer.version}</version>
+      </dependency>
+
+      <!--It is important to use the earlier versions as the latest ones are not compatible with MetaMap web API. -->
+      <dependency>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+          <version>${httpclient.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpmime</artifactId>
+          <version>${httpclient.version}</version>
+      </dependency>
 
   </dependencies>
 

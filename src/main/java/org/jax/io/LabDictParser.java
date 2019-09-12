@@ -12,7 +12,7 @@ import java.util.Map;
 
 /**
  * This class parses the D_LABITEMS.csv file and provide a map from primary key to all records.
- * Note: the primary key is row_id, not lab item_id
+ * NoteEvent: the primary key is row_id, not lab item_id
  */
 public class LabDictParser {
 
@@ -27,7 +27,7 @@ public class LabDictParser {
 
 
     /**
-     * Primary key (row_id) to record mapping. Note: row_id is the primary key for this table; lab item identification uses "item_id".
+     * Primary key (row_id) to record mapping. NoteEvent: row_id is the primary key for this table; lab item identification uses "item_id".
      * @return
      * @throws IOException
      */
