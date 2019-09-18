@@ -1,17 +1,14 @@
 package org.jax.text2hpo;
 
 import org.apache.commons.lang3.StringUtils;
-import org.jax.uni_phenominer.core.miner.Phenominer;
 import org.jax.uni_phenominer.core.miner.TermMinerException;
 import org.jax.uni_phenominer.core.miner.metamap_local.MetaMapLocalHpoMiner;
-import org.jax.uni_phenominer.core.miner.metamap_webAPI.MetaMapHPOMiner;
 import org.jax.uni_phenominer.core.term.MinedTerm;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class UmlsText2HpoService {

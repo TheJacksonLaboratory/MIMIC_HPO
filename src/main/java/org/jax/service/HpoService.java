@@ -1,6 +1,7 @@
 package org.jax.service;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.monarchinitiative.phenol.io.OntologyLoader;
@@ -44,7 +45,10 @@ public class HpoService {
     }
 
     public Set<TermId> infer(TermId id, boolean includeSelf){
-        return OntologyAlgorithm.getAncestorTerms(this.ontology, id, includeSelf);
+        // id could be non-primary id
+        TermId primary = this.ontology.getPrimaryTermId(id);
+
+        return OntologyAlgorithm.getAncestorTerms(this.ontology, primary, includeSelf);
     }
 
 }

@@ -24,6 +24,13 @@ public class NoteHpo {
         this.mapTo = mapTo;
     }
 
+    public NoteHpo(int rowid, int rowid_note, String negated, String mapTo) {
+        this.rowid = rowid;
+        this.rowid_note = rowid_note;
+        this.negated = negated;
+        this.mapTo = mapTo;
+    }
+
     public int getRowid() {
         return rowid;
     }
