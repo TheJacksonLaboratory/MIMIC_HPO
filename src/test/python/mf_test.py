@@ -46,7 +46,7 @@ class TestMF(unittest.TestCase):
 
 
     def test_summarize_diagnosis_phenotype_pair(self):
-        s2 = mf.summarize_diagnosis_phenotype_pair(self.P, self.d)
+        s2 = mf.summarize_diagnosis_phenotype_pair2(self.P, self.P, self.d)
         self.assertEqual(s2[0,1,0], 1)
         self.assertEqual(s2[0, 2, 5], 1)
         self.assertEqual(s2[0,3,0], 3)
@@ -56,7 +56,7 @@ class TestMF(unittest.TestCase):
         np.random.seed(799)
         P = np.random.randint(0,2,24).reshape([6,4])
         d = np.random.randint(0,2,6)
-        ppd = mf.summarize_diagnosis_phenotype_pair(P, d)
+        ppd = mf.summarize_diagnosis_phenotype_pair2(P, P, d)
         self.assertEqual(ppd[0, 0, :].tolist(), [2,2,0,0,0,0,0,2])
         self.assertEqual(ppd[0, 1, :].tolist(), [1,1,1,1,0,2,0,0])
         self.assertEqual(ppd[0, 2, :].tolist(), [2,0,0,2,0,1,0,1])
