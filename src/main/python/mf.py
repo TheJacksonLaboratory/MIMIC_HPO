@@ -294,14 +294,14 @@ class Synergy2:
         Ia, _, _ = mf_diagnosis_phenotype(self.m1a, self.case_N, self.control_N)
         Ib, _, _ = mf_diagnosis_phenotype(self.m1b, self.case_N, self.control_N)
         II = mf_diagnosis_phenotype_pair(self.m2, self.case_N, self.control_N)
-        self.S = synergy(Ia, Ib, II)
+        self.S = synergy2(Ia, Ib, II)
         return self.S
 
     def pairwise_synergy_labeled(self):
         M1 = len(self.phenotype_label1)
         M2 = len(self.phenotype_label2)
-        P1 = np.repeat(self.phenotype_label1, M1)
-        P2 = np.tile(self.phenotype_label2, M2)
+        P1 = np.repeat(self.phenotype_label1, M2)
+        P2 = np.tile(self.phenotype_label2, [M1])
         S = self.pairwise_synergy()
         df = pd.DataFrame(data = {'P1': P1, 'P2': P2, 'synergy':
             S.flat}).sort_values(by = 'synergy',
@@ -631,11 +631,11 @@ def mf_diagnosis_phenotype_pair(m2, case_N, control_N):
     '''
     N = case_N + control_N
     prob_diag = case_N / N
-    M = m2.shape[0]
+    M1, M2 = m2.shape[0:2]
     prob = m2 / N
     prob_pheno_M = np.repeat(prob[:,:,[1,3,5,7]] + prob[:,:,[0,2,4,6]], 2, axis=-1)
     prob_diag_M = np.tile(np.array([prob_diag, 1 - prob_diag]).reshape([1,1,2]), 4)
-    temp = np.zeros([M, M, 8])
+    temp = np.zeros([M1, M2, 8])
     non_zero_valued_indices = np.logical_and(prob != 0, prob_pheno_M * prob_diag_M != 0)
     temp2 = prob_pheno_M * prob_diag_M
     temp[non_zero_valued_indices] = np.log2(prob[non_zero_valued_indices] / temp2[non_zero_valued_indices])
@@ -657,7 +657,7 @@ def synergy(I, II):
     return S
 
 
-def synergy(I1, I2, II):
+def synergy2(I1, I2, II):
     """
     Compute pairwise synergy of phenotypes in respect to one diagnosis
     :param P: a M x N matrix of patient phenotype profile

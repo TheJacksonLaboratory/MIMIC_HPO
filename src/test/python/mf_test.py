@@ -195,8 +195,66 @@ class TestMF(unittest.TestCase):
         synergies = {}
         synergies['heart failure'] = heart_failure
         synergies['heart failure'].add_batch(self.P, self.d)
-        #print(synergies['heart failure'].pairwise_synergy())
+        print(synergies['heart failure'].pairwise_synergy())
         heart_failure.__getattribute__('m1')
+
+    def test_Synergy2(self):
+        heart_failure = mf.Synergy2(disease='heart failure',
+                                   phenotype_list1=['HP:001', 'HP:002',
+                                                   'HP:003', 'HP:004'],
+                                    phenotype_list2=['HP:011', 'HP:012',
+                                                    'HP:013', 'HP:014']
+                                    )
+        heart_failure.add_batch(self.P, self.P, self.d)
+        S = heart_failure.pairwise_synergy()
+        # update with the same set of data should not affect synergy
+        heart_failure.add_batch(self.P, self.P, self.d)
+        S_updated = heart_failure.pairwise_synergy()
+        self.assertEqual(S.all(), S_updated.all())
+
+        self.assertEqual(heart_failure.get_case_count(), 8)
+        self.assertEqual(heart_failure.get_control_count(), 6)
+        synergies = {}
+        synergies['heart failure'] = heart_failure
+        synergies['heart failure'].add_batch(self.P, self.P, self.d)
+        print(synergies['heart failure'].pairwise_synergy())
+        heart_failure.__getattribute__('m1a')
+
+    def test_Synergy2_2(self):
+        heart_failure = mf.Synergy2(disease='heart failure',
+                                   phenotype_list1=['HP:001', 'HP:002',
+                                                   'HP:003', 'HP:004'],
+                                    phenotype_list2=['HP:011', 'HP:012',
+                                                    'HP:013']
+                                    )
+        p1 = np.array([[1, 0, 0, 1],
+                       [0, 1, 0, 1],
+                       [0, 0, 0, 1],
+                       [0, 1, 1, 0],
+                       [1, 0, 1, 1]])
+        p2 = np.array([[0, 0, 1],
+                       [0, 1, 0],
+                       [1, 0, 1],
+                       [1, 0, 1],
+                       [0, 1, 1]])
+        d = np.array([1, 0, 0, 1, 0])
+        heart_failure.add_batch(p1, p2, d)
+        S = heart_failure.pairwise_synergy()
+        # update with the same set of data should not affect synergy
+        heart_failure.add_batch(p1, p2, d)
+        S_updated = heart_failure.pairwise_synergy()
+        self.assertEqual(S.all(), S_updated.all())
+
+        self.assertEqual(heart_failure.get_case_count(), 4)
+        self.assertEqual(heart_failure.get_control_count(), 6)
+        synergies = {}
+        synergies['heart failure'] = heart_failure
+        synergies['heart failure'].add_batch(p1, p2, d)
+        self.assertAlmostEqual(synergies['heart failure'].pairwise_synergy()[0, 0], 0.1310044,
+                               places=6)
+        print("synergies")
+        print(synergies['heart failure'].pairwise_synergy())
+        #heart_failure.__getattribute__('m1a')
 
 
 if __name__ == '__main__':

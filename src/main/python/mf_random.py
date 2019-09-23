@@ -100,6 +100,48 @@ class SynergyRandomizer:
         return p
 
 
+class SynergyRandomizer2:
+
+    def __init__(self, synergy):
+        self.case_N = synergy.case_N
+        self.control_N = synergy.control_N
+        self.m1a = synergy.m1a
+        self.m1b = synergy.m1b
+        self.m2 = synergy.m2
+        self.S = synergy.pairwise_synergy()
+        self.empirical_distribution=np.zeros([1, 1])
+        logger.info('randomizer initiated')
+
+    def simulate(self, per_simulation=None, simulations=100, cpu=None,
+                 job_id=0):
+        TOTAL = self.case_N + self.control_N
+        diag_prob = self.case_N / TOTAL
+        phenotype_prob1 = np.sum(self.m1a[:, 0:1], axis=1) / TOTAL
+        phenotype_prob2 = np.sum(self.m1b[:, 0:1], axis=1) / TOTAL
+        if per_simulation is None:
+            per_simulation = TOTAL
+        self.empirical_distribution = create_empirical_distribution2(diag_prob,
+                 phenotype_prob1, phenotype_prob2, per_simulation, simulations,
+                                                                    cpu, job_id)
+
+    def p_value(self, adjust=None):
+        """
+        Estimate p values for each observed phenotype pair by comparing the
+        observed synergy score with empirical distributions created by random
+        sampling.
+        :param sampling: sampling times
+        :return: p value matrix
+        """
+        # TODO: this is like Bonferroni, but not exactly
+        if adjust == 'Bonferroni':
+            test_times = len(np.triu(self.S))
+            adjusted_S = self.S / test_times
+        else:
+            adjusted_S = self.S
+        return p_value_estimate(adjusted_S, self.empirical_distribution,
+                                'two.sided')
+
+
 def p_value_estimate(observed, empirical_distribution, alternative='two.sided'):
     """
     Estimate P value of observed synergy scores from the empirical distribution.
@@ -221,6 +263,79 @@ def synergy_random(disease_prevalence, phenotype_prob, sample_size,
     return mocked.pairwise_synergy()
 
 
+def create_empirical_distribution2(diag_prevalence, phenotype_prob1,
+                                   phenotype_prob2, sample_per_simulation,
+                                   SIMULATION_SIZE, cpu=None, job_id=0):
+    """
+    Create empirical distributions for each phenotype pair.
+    :param diag_case_prob: a scalar for the prevalence of the diagnosis under
+    study
+    :param phenotype_prob: a size M vector for the prevalence of the phenotypes
+    under study
+    :param sample_per_simulation: number of samples for each simulation
+    :param SIMULATION_SIZE: total simulations
+    :return: a M x M x SIMULATION_SIZE matrix for the empirical distributions
+    """
+    logger.info('number of CPU: {}'.format(os.cpu_count()))
+    if cpu is None:
+        cpu = os.cpu_count()
+    workers = multiprocessing.Pool(cpu)
+    logger.info(f'number of workers created: {cpu}')
+    results = [workers.apply_async(synergy_random2, args=(diag_prevalence,
+                                                        phenotype_prob1,
+                                                         phenotype_prob2,
+                                                        sample_per_simulation,
+                                                        i + job_id*SIMULATION_SIZE))
+         for i in np.arange(SIMULATION_SIZE)]
+    workers.close()
+    workers.join()
+    assert(len(results) == SIMULATION_SIZE)
+    empirical_distribution = np.stack([res.get() for res in results], axis=-1)
+
+    return empirical_distribution
+
+
+def synergy_random2(disease_prevalence, phenotype_prob1, phenotype_prob2,
+    sample_size, seed=None):
+    """
+    Simulate disease condition and phenotype matrix with provided
+    probability distributions and calculate the resulting synergy.
+    :param disease_prevalence: a scalar representation of the disease prevalence
+    :param phenotype_prob: a size M vector representing the observed
+    prevalence of phenotypes
+    :param sample_size: number of cases to simulate
+    :return: a M x M matrix representing the pairwise synergy from the
+    simulated disease conditions and phenotype profiles.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    mocked = mf.Synergy2(disease='mocked', phenotype_list1=np.arange(len(
+        phenotype_prob1)), phenotype_list2=np.arange(len(phenotype_prob2)))
+    BATCH_SIZE = 100
+    M1 = len(phenotype_prob1)
+    M2 = len(phenotype_prob2)
+    total_batches = int(np.ceil(sample_size / BATCH_SIZE))
+    logger.debug('start simulation: {} '.format(seed))
+    for i in np.arange(total_batches):
+        logger.debug(f'add batch {i} -> simulation {seed}')
+        if i == total_batches - 1:
+            actual_batch_size = sample_size - BATCH_SIZE * (i - 1)
+        else:
+            actual_batch_size = BATCH_SIZE
+        d = (np.random.uniform(0, 1, actual_batch_size) <
+             disease_prevalence).astype(int)
+        # the following is faster than doing choice with loops
+        P1 = np.random.uniform(0, 1, actual_batch_size*M1).reshape([
+            actual_batch_size, M1])
+        P1 = (P1 < phenotype_prob1.reshape([1, M1])).astype(int)
+        P2 = np.random.uniform(0, 1, actual_batch_size * M2).reshape([
+            actual_batch_size, M2])
+        P2 = (P2 < phenotype_prob2.reshape([1, M2])).astype(int)
+        mocked.add_batch(P1, P2, d)
+    logger.debug('end simulation {}'.format(seed))
+    return mocked.pairwise_synergy()
+
+
 def closest_index(query, ordered_positivelist, transform='log10'):
     assert (ordered_positivelist > 0).all()
     if transform == 'log10':
@@ -231,16 +346,13 @@ def closest_index(query, ordered_positivelist, transform='log10'):
     if query <= ordered_positivelist[0]:
         return 0
     elif query >= ordered_positivelist[-1]:
-        return len(ordered_positivelist)
+        return len(ordered_positivelist) - 1
     else:
         for i in np.arange(0, len(ordered_positivelist) - 1):
             if query > ordered_positivelist[i + 1]:
                 continue
-            print('query {}'.format(query))
             to_left = query - ordered_positivelist[i]
-            print('distance to left: {}'.format(to_left))
             to_right = ordered_positivelist[i + 1] - query
-            print('distance to right: {}'.format(to_right))
             if to_left <= to_right:
                 return i
             else:

@@ -22,6 +22,11 @@ class TestMFRandom(unittest.TestCase):
 
         self.heart_failure.add_batch(self.P, self.d)
 
+        self.heart_failure2 = mf.Synergy2(disease='heart failure',
+                                   phenotype_list1=phenotype_list,
+                                          phenotype_list2=phenotype_list)
+        self.heart_failure2.add_batch(self.P, self.P, self.d)
+
     def test_matrix_searchsorted(self):
         ordered = np.arange(24).reshape([2, 3, 4])
         query = np.array([[-1, 4, 8.5], [13.5, 19, 24]])
@@ -124,6 +129,21 @@ class TestMFRandom(unittest.TestCase):
         # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
         self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
                         (M * (M - 1) / 2))
+        p_matrix = randomiser.p_value('Bonferroni')
+        print(p_matrix)
+
+    def test_SynergyRandomiser2(self):
+        randomiser = mf_random.SynergyRandomizer2(self.heart_failure2)
+        # print(self.heart_failure.m1)
+        # print(self.heart_failure.m2)
+        randomiser.simulate(simulations=100)
+        p_matrix = randomiser.p_value()
+        M1, M2 = p_matrix.shape[0:2]
+        print(p_matrix.shape)
+        # print(np.diagonal(p_matrix))
+        # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
+        self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
+                        (M1 * (M2 - 1) / 2))
         p_matrix = randomiser.p_value('Bonferroni')
         print(p_matrix)
 
