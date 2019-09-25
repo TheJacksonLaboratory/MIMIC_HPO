@@ -14,18 +14,19 @@ class TestMFRandom(unittest.TestCase):
         M = 10
         N = 10000
         phenotype_list = ['HP:' + str(i + 1) for i in np.arange(M)]
-        self.heart_failure = mf.Synergy(disease='heart failure',
-                                   phenotype_list=phenotype_list)
+        self.heart_failure = mf.Synergy(dependent_var_name='heart failure',
+                                        independent_X_names=phenotype_list,
+                                        independent_Y_names=phenotype_list)
         np.random.seed(11)
         self.d = np.random.randint(0, 2, N)
         self.P = np.random.randint(0, 2, M * N).reshape([N, M])
 
-        self.heart_failure.add_batch(self.P, self.d)
+        self.heart_failure.add_batch(self.P, self.P, self.d)
 
-        self.heart_failure2 = mf.Synergy2(disease='heart failure',
-                                   phenotype_list1=phenotype_list,
-                                          phenotype_list2=phenotype_list)
-        self.heart_failure2.add_batch(self.P, self.P, self.d)
+        self.heart_failure2 = mf.SynergyWithinSet(dependent_var_name='heart '
+                                                                     'failure',
+                                   independent_var_names=phenotype_list)
+        self.heart_failure2.add_batch(self.P, self.d)
 
     def test_matrix_searchsorted(self):
         ordered = np.arange(24).reshape([2, 3, 4])
@@ -42,6 +43,7 @@ class TestMFRandom(unittest.TestCase):
         simulations = 100
         distribution = mf_random.create_empirical_distribution(diag_prevalence,
                                                         phenotype_prob,
+                                                                phenotype_prob,
                                                         sample_per_simulation,
                                                         simulations)
         self.assertEqual(list(distribution.shape), [10, 10, 100])
@@ -78,6 +80,7 @@ class TestMFRandom(unittest.TestCase):
         phenotype_prob = np.random.uniform(0, 1, 10)
         sample_per_simulation = 5000
         S = mf_random.synergy_random(disease_prevalence, phenotype_prob,
+                                      phenotype_prob,
                               sample_per_simulation)
         np.testing.assert_almost_equal(S, np.zeros(S.shape), decimal=3)
 
@@ -91,7 +94,7 @@ class TestMFRandom(unittest.TestCase):
                 serializing_file:
             deserialized = pickle.load(serializing_file)
 
-        self.assertEqual(deserialized.get_disease(), 'heart failure')
+        self.assertEqual(deserialized.get_dependent_name(), 'heart failure')
         self.assertEqual(deserialized.get_case_count(), cases)
         self.assertEqual(deserialized.pairwise_synergy().all(),
                          self.heart_failure.pairwise_synergy().all())
@@ -117,35 +120,35 @@ class TestMFRandom(unittest.TestCase):
         q = 0.8
         self.assertEqual(4, mf_random.closest_index(q, targetlist))
 
-    def test_SynergyRandomiser(self):
+    def test_SynergyRandomiserforSynergy(self):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)
         # print(self.heart_failure.m1)
         # print(self.heart_failure.m2)
         randomiser.simulate(simulations=100)
         p_matrix = randomiser.p_value()
         M = p_matrix.shape[0]
-        print(p_matrix)
+        #print(p_matrix)
         # print(np.diagonal(p_matrix))
         # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
         self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
                         (M * (M - 1) / 2))
         p_matrix = randomiser.p_value('Bonferroni')
-        print(p_matrix)
+        #print(p_matrix)
 
-    def test_SynergyRandomiser2(self):
-        randomiser = mf_random.SynergyRandomizer2(self.heart_failure2)
+    def test_SynergyRandomiserForSynergyWithinSet(self):
+        randomiser = mf_random.SynergyRandomizer(self.heart_failure2)
         # print(self.heart_failure.m1)
         # print(self.heart_failure.m2)
         randomiser.simulate(simulations=100)
         p_matrix = randomiser.p_value()
-        M1, M2 = p_matrix.shape[0:2]
-        print(p_matrix.shape)
+        M = p_matrix.shape[0]
+        #print(p_matrix)
         # print(np.diagonal(p_matrix))
         # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
         self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
-                        (M1 * (M2 - 1) / 2))
+                        (M * (M - 1) / 2))
         p_matrix = randomiser.p_value('Bonferroni')
-        print(p_matrix)
+        #print(p_matrix)
 
 
 if __name__ == '__main__':

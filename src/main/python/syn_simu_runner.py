@@ -35,7 +35,8 @@ def main():
     simulate_parser.add_argument('-cpu', help='specify the number of available cpu',
                         default=None, type=int, dest='cpu')
     simulate_parser.add_argument('-disease', help='specify if only to analyze such disease',
-                                 default=[], dest='disease_of_interest')
+                                 default=[], dest='disease_of_interest',
+                                 type=str)
     simulate_parser.set_defaults(func=simulate)
 
     estimate_parser = subparser.add_parser('estimate',
@@ -48,7 +49,8 @@ def main():
     estimate_parser.add_argument('-o', '--ouput', help='output dir',
                                  action='store', dest='out_dir')
     estimate_parser.add_argument('-disease', help='specify if only to analyze such disease',
-                                 default=[], dest='disease_of_interest')
+                                 default=[], dest='disease_of_interest',
+                                 type=str)
     estimate_parser.set_defaults(func=estimate)
 
     args = parser.parse_args()
@@ -113,7 +115,6 @@ def estimate(args):
         logger.info('number of diseases to run simulations for {}'.format(
             len(disease_synergy_map)))
 
-    p_map = {}
     for disease, synergy in disease_synergy_map.items():
         if disease_of_interest is not None and \
                         disease not in disease_of_interest:
@@ -122,15 +123,14 @@ def estimate(args):
         empirical_distribution = load_distribution(dist_path, disease)
         serialize_empirical_distributions(empirical_distribution,
              os.path.join(out_path, disease +
-                          'empirical_distribution_subset.obj'))
+                          '_empirical_distribution_subset.obj'))
         randmizer.empirical_distribution = empirical_distribution
         p = randmizer.p_value()
-        p_map[disease] = p
 
-    p_map_path = os.path.join(out_path, 'p_value_map.obj')
-    with open(p_map_path, 'wb') as f:
-        pickle.dump(p_map, f, protocol=2)
-    return p_map
+    p_path = os.path.join(out_path, 'p_value_{}.obj'.format(disease_of_interest))
+    with open(p_path, 'wb') as f:
+        pickle.dump(p, f, protocol=2)
+    return p
 
 
 def load_distribution(dir, disease_prefix):
