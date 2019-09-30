@@ -99,30 +99,9 @@ class TestMFRandom(unittest.TestCase):
         self.assertEqual(deserialized.pairwise_synergy().all(),
                          self.heart_failure.pairwise_synergy().all())
 
-    def test_closest_index(self):
-        targetlist = np.array([0.001, 0.01, 0.05, 0.1, 0.7])
-        q = 0
-        self.assertEqual(0, mf_random.closest_index(q, targetlist))
-        q = 0.001
-        self.assertEqual(0, mf_random.closest_index(q, targetlist))
-        q = 0.003
-        self.assertEqual(0, mf_random.closest_index(q, targetlist))
-        q = 0.0035
-        self.assertEqual(1, mf_random.closest_index(q, targetlist))
-        q = 0.01
-        self.assertEqual(1, mf_random.closest_index(q, targetlist))
-        q = 0.02
-        self.assertEqual(1, mf_random.closest_index(q, targetlist))
-        q = 0.035
-        self.assertEqual(2, mf_random.closest_index(q, targetlist))
-        q = 0.7
-        self.assertEqual(4, mf_random.closest_index(q, targetlist))
-        q = 0.8
-        self.assertEqual(4, mf_random.closest_index(q, targetlist))
-
     def test_SynergyRandomiserforSynergy(self):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)
-        # print(self.heart_failure.m1)
+        # print(self.heart_failure.m1['set1'])
         # print(self.heart_failure.m2)
         randomiser.simulate(simulations=100)
         p_matrix = randomiser.p_value()

@@ -162,17 +162,23 @@ class Synergy:
         return self.S
 
     def pairwise_synergy_labeled(self):
-        P1 = np.repeat(self.vars_labels, self.M2)
-        P2 = np.tile(self.vars_labels, [self.M1])
+        P1 = np.repeat(self.vars_labels['set1'], self.M2)
+        P2 = np.tile(self.vars_labels['set2'], [self.M1])
+        assert(len(P1) == len(P2))
         S = self.pairwise_synergy()
         df = pd.DataFrame(data = {'P1': P1, 'P2': P2, 'synergy':
-            S.flat}).sort_values(by = 'synergy',
-                                 ascending=False).reset_index(drop=True)
+            S.flat}).sort_values(by='synergy', ascending=False).reset_index(
+            drop=True)
         return df
 
     def pairwise_synergy_labeled_with_p_values(self, p_values):
-        df = self.pairwise_synergy_labeled()
-        df['p'] = p_values.flat
+        P1 = np.repeat(self.vars_labels['set1'], self.M2)
+        P2 = np.tile(self.vars_labels['set2'], [self.M1])
+        assert (len(P1) == len(P2))
+        S = self.pairwise_synergy()
+        df = pd.DataFrame(data={'P1': P1, 'P2': P2, 'synergy':
+            S.flat, 'p': p_values.flat}).sort_values(by='synergy', ascending=False).reset_index(
+            drop=True)
         return df
 
 

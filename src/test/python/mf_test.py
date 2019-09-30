@@ -3,6 +3,7 @@ import src.main.python.mf as mf
 import numpy as np
 import math
 import tempfile
+import pickle
 
 
 class TestMF(unittest.TestCase):
