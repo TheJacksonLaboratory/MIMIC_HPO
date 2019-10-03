@@ -9,6 +9,110 @@ logging.config.fileConfig(log_file_path)
 logger = logging.getLogger(__name__)
 
 
+class MutualInformation:
+
+    def __init__(self, x_name, y_name):
+        self.x_name = x_name
+        self.y_name = y_name
+        self.x = np.array([])
+        self.y = np.array([])
+
+    def add_batch(self, x, y):
+        assert len(x) == len(y)
+        self.x = np.concatenate((self.x.reshape([1, -1]), np.array(
+            x).reshape([1, -1])), axis=1)
+        self.y = np.concatenate((self.y.reshape([1, -1]), np.array(
+            y).reshape([1, -1])), axis=1)
+
+    def mf(self):
+        N = len(self.x)
+        df = pd.DataFrame(data={'x_value': self.x, 'y_value': self.y})
+        # count the observations
+        dist = df.groupby(['x_value', 'y_value']).size.reset_index().rename(
+            columns={0: 'N'})
+        # partition the observations by x and return the total count for x value
+        # same for y
+        dist['x_count'] = dist.groupby('x_value').N.transform('count')
+        dist['y_count'] = dist.groupby('y_value').N.transform('count')
+        dist['p'] = dist['N'] / N
+        dist['p_x'] = dist['x_count'] / N
+        dist['p_y'] = dist['y_count'] / N
+        mf = np.sum(dist.p * np.log2(dist.p / (dist.p_x * dist.p_y)))
+        return mf
+
+
+class MutualInformationVectorized:
+
+    def __init__(self, X_names, Y_names):
+        self.X_names = np.array(X_names)
+        self.Y_names = np.array(Y_names)
+        self.M1 = len(self.X_names)
+        self.M2 = len(self.Y_names)
+        self.m = np.zeros([self.M1, self.M2, 4])
+        self.N = 0
+
+    def add_batch(self, X, Y):
+        """
+        Add a batch of observations for X and Y
+        :param X: a N x M1 matrix of binary values for random variables in X
+        :param Y: a N x M2 matrix of binary values for random variables in Y
+        :return: updated summary statistics of X and Y
+        """
+        assert X.shape[1] == self.M1
+        assert Y.shape[1] == self.M2
+        assert X.shape[0] == Y.shape[0]
+        n = X.shape[0]
+        self.N = self.N + n
+        d = np.repeat(1, n)
+        s = summarize_diagnosis_phenotype_pair(X, Y, d)[:, :, [0, 2, 4, 6]]
+        self.m = self.m + s
+
+    def mf(self):
+        """
+        Compute and return the pairwise mutual information between variable
+        pairs in X and Y
+        :return: a M1 X M2 matrix of pairwise mutual information
+        """
+        p = self.m / self.N
+        p_x = np.repeat(np.sum(self.m.reshape(self.M1, self.M2, 2, 2),
+                               axis=-1), 2, axis=-1) / self.N
+        p_y = np.tile(np.sum(self.m.reshape(self.M1, self.M2, 2, 2,
+                              order='F'), axis=-1), [2]) / self.N
+        temp = np.zeros_like(p)
+        non_zero_idx = np.logical_not(np.array([p == 0]).squeeze())
+        temp[non_zero_idx] = p[non_zero_idx] * np.log2(p[non_zero_idx]/(p_x[non_zero_idx] * p_y[non_zero_idx]))
+        mutual_info = np.sum(temp, axis=-1)
+        return mutual_info
+
+    def mf_labeled(self):
+        """
+        Return a labeled dataframe instead of matrix
+        :return: a dataframe
+        """
+        p1 = np.repeat(self.X_names, self.M2)
+        p2 = np.tile(self.Y_names, [self.M1])
+        mf_value = self.mf().ravel()
+        df = pd.DataFrame(data={'P1': p1, 'P2': p2, 'mf': mf_value})
+        return df
+
+    def entropies(self):
+        X_alone = self.m[:, 0, :].squeeze()
+        assert X_alone.shape[0] == self.M1
+        assert X_alone.shape[1] == 4
+        X_alone_counts = np.sum(X_alone.reshape([self.M1, 2, 2]), axis=-1)
+        h ={}
+        h['X'] = entropy(X_alone_counts)
+
+        Y_alone = self.m[0, :, :].squeeze()
+        assert Y_alone.shape[0] == self.M2
+        assert Y_alone.shape[1] == 4
+        Y_alone_counts = np.sum(Y_alone.reshape([self.M2, 2, 2], order='F'),
+                                axis=-1)
+        h['Y'] = entropy(Y_alone_counts)
+
+        return h
+
+
 class Synergy:
     """
     Class to represent and compute the pairwise synergy between a random
@@ -502,3 +606,21 @@ def synergy(I1, I2, II):
     S = II - I1.reshape([M1, 1]) - I2.reshape([1, M2])
 
     return S
+
+
+def entropy(X):
+    """
+    Vectorized implementation of entropy computation. Given the summary
+    statistics of random variables X1, X2, ..., Xn, return the entropies of
+    each as a vector.
+    :param X: a M x 2 matrix. M is the number of random variables, 2 binary
+    outcome counts, + and -.
+    :return: a 1 x M vector.
+    """
+    TOTAL = np.sum(X, axis=-1).reshape([-1, 1])
+    p = X / TOTAL
+    temp = np.zeros_like(p)
+    non_zero_idx = (p != 0)
+    temp[non_zero_idx] = -p[non_zero_idx] * np.log2(p[non_zero_idx])
+    entropies = np.sum(temp, axis=-1).squeeze()
+    return entropies
