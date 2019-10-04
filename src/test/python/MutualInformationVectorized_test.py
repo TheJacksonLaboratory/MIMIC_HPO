@@ -28,11 +28,11 @@ class TestMu(unittest.TestCase):
         self.tempdir = tempfile.mkdtemp()
 
     def test_constructor(self):
-        mfv = mf.MutualInformationVectorized(self.X_names, self.Y_names)
+        mfv = mf.MutualInfoXY(self.X_names, self.Y_names)
         self.assertIsNotNone(mfv)
 
     def test_add_batch(self):
-        mfv = mf.MutualInformationVectorized(self.X_names, self.Y_names)
+        mfv = mf.MutualInfoXY(self.X_names, self.Y_names)
         mfv.add_batch(self.X, self.Y)
         summary = mfv.m
         np.testing.assert_array_equal(summary[0, 0, :], np.array([2, 2, 2, 1]))
@@ -41,7 +41,7 @@ class TestMu(unittest.TestCase):
         np.testing.assert_array_equal(summary[1, 2, :], np.array([2, 1, 2, 2]))
 
     def test_mf(self):
-        mfv = mf.MutualInformationVectorized(self.X_names, self.Y_names)
+        mfv = mf.MutualInfoXY(self.X_names, self.Y_names)
         mfv.add_batch(self.X, self.Y)
         mf_info = mfv.mf()
         self.assertAlmostEqual(mf_info[0, 0], 0.02024421)
@@ -63,7 +63,7 @@ class TestMu(unittest.TestCase):
                       [1, 1, 1, 1, 0],
                       [1, 0, 0, 1, 0],
                       [0, 1, 1, 1, 0]])
-        mfv = mf.MutualInformationVectorized(self.X_names, self.Y_names)
+        mfv = mf.MutualInfoXY(self.X_names, self.Y_names)
         mfv.add_batch(X, Y)
         h = mfv.entropies()
         self.assertAlmostEqual(-h['X'][0], 4/7 * np.log2(4/7) + 3/7 * np.log2(

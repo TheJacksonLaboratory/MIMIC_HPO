@@ -16,7 +16,7 @@ class SynergyRandomizer:
 
     def __init__(self, synergy_to_simulate):
         # TODO: how to check type with isinstance call
-        if str(type(synergy_to_simulate)).find("SynergyWithinSet") != -1:
+        if str(type(synergy_to_simulate)).find("MutualInfoXXz") != -1:
             synergy = synergy_to_simulate.synergy
         else:
             synergy = synergy_to_simulate
@@ -122,9 +122,10 @@ def synergy_random(disease_prevalence, phenotype_prob1, phenotype_prob2,
     """
     if seed is not None:
         np.random.seed(seed)
-    mocked = mf.Synergy(dependent_var_name='mocked',
-                        independent_X_names=np.arange(len(phenotype_prob1)),
-                        independent_Y_names=np.arange(len(phenotype_prob2)))
+    mocked = mf.MutualInfoXYz(
+                              X_names=np.arange(len(phenotype_prob1)),
+                              Y_names=np.arange(len(phenotype_prob2)),
+                              z_name='mocked')
     BATCH_SIZE = 100
     M1 = len(phenotype_prob1)
     M2 = len(phenotype_prob2)

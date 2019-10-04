@@ -15,14 +15,14 @@ class TestSynSimuRunner(unittest.TestCase):
         M1 = 20
         N1 = 10000
         p1 = ['HP:' + str(i) for i in np.arange(M1)]
-        synergy1 = mf.SynergyWithinSet('D1', p1)
+        synergy1 = mf.MutualInfoXXz('D1', p1)
         synergy1.add_batch(np.random.randint(0, 2, M1 * N1).reshape([N1, M1]),
                            np.random.randint(0, 2, N1))
 
         M2 = 30
         N2 = 5000
         p2 = ['HP:' + str(i) for i in np.arange(M2)]
-        synergy2 = mf.Synergy('D2', p2, p2)
+        synergy2 = mf.MutualInfoXYz(p2, p2, 'D2')
         synergy2.add_batch(np.random.randint(0, 2, M2 * N2).reshape([N2, M2]),
                            np.random.randint(0, 2, M2 * N2).reshape([N2, M2]),
                            np.random.randint(0, 2, N2))

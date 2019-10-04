@@ -14,18 +14,19 @@ class TestMFRandom(unittest.TestCase):
         M = 10
         N = 10000
         phenotype_list = ['HP:' + str(i + 1) for i in np.arange(M)]
-        self.heart_failure = mf.Synergy(dependent_var_name='heart failure',
-                                        independent_X_names=phenotype_list,
-                                        independent_Y_names=phenotype_list)
+        self.heart_failure = mf.MutualInfoXYz(
+                                              X_names=phenotype_list,
+                                              Y_names=phenotype_list,
+                                            z_name='heart failure')
         np.random.seed(11)
         self.d = np.random.randint(0, 2, N)
         self.P = np.random.randint(0, 2, M * N).reshape([N, M])
 
         self.heart_failure.add_batch(self.P, self.P, self.d)
 
-        self.heart_failure2 = mf.SynergyWithinSet(dependent_var_name='heart '
+        self.heart_failure2 = mf.MutualInfoXXz(dependent_var_name='heart '
                                                                      'failure',
-                                   independent_var_names=phenotype_list)
+                                               independent_var_names=phenotype_list)
         self.heart_failure2.add_batch(self.P, self.d)
 
     def test_matrix_searchsorted(self):
@@ -94,7 +95,7 @@ class TestMFRandom(unittest.TestCase):
                 serializing_file:
             deserialized = pickle.load(serializing_file)
 
-        self.assertEqual(deserialized.get_dependent_name(), 'heart failure')
+        self.assertEqual(deserialized.get_z_name(), 'heart failure')
         self.assertEqual(deserialized.get_case_count(), cases)
         self.assertEqual(deserialized.pairwise_synergy().all(),
                          self.heart_failure.pairwise_synergy().all())
