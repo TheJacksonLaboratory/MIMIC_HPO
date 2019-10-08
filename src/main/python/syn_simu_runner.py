@@ -4,6 +4,7 @@ import os.path
 from mf_random import SynergyRandomizer
 import logging.config
 import numpy as np
+import math
 
 log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              'log_config.conf')
@@ -152,11 +153,12 @@ def load_distribution(dir, disease_prefix):
 
 
 def serialize_empirical_distributions(distribution, path):
-    M = distribution.shape[0]
+    M1 = distribution.shape[0]
+    M2 = distribution.shape[1]
     N = distribution.shape[2]
-    sampling_1d_size = np.minimum(5, M)
-    i_index = np.random.choice(np.arange(M), sampling_1d_size, replace=False)
-    j_index = np.random.choice(np.arange(M), sampling_1d_size, replace=False)
+    sampling_1d_size = min([M1, M2, 5])
+    i_index = np.random.choice(np.arange(M1), sampling_1d_size, replace=False)
+    j_index = np.random.choice(np.arange(M2), sampling_1d_size, replace=False)
     sampled_empirical_distributions = np.zeros([sampling_1d_size,
                                                 sampling_1d_size, N])
     for i in np.arange(sampling_1d_size):
@@ -166,7 +168,6 @@ def serialize_empirical_distributions(distribution, path):
 
     with open(path, 'wb') as f:
         pickle.dump(sampled_empirical_distributions, file=f, protocol=2)
-
 
 
 if __name__=='__main__':
