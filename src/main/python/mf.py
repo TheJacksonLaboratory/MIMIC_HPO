@@ -8,6 +8,79 @@ log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 logging.config.fileConfig(log_file_path)
 logger = logging.getLogger(__name__)
 
+class SummaryXY:
+    """
+    Class to represent the summary statistics of X, Y. X, Y each is a vector
+    of random variables.
+    """
+    def __init__(self, X_names, Y_names):
+        self.X_names = np.array(X_names)
+        self.Y_names = np.array(Y_names)
+        self.M1 = len(self.X_names)
+        self.M2 = len(self.Y_names)
+        self.m = np.zeros([self.M1, self.M2, 4])
+        self.N = 0
+
+    def add_batch(self, X, Y):
+        """
+        Add a batch of observations for X and Y
+        :param X: a N x M1 matrix of binary values for random variables in X
+        :param Y: a N x M2 matrix of binary values for random variables in Y
+        :return: updated summary statistics of X and Y
+        """
+        assert X.shape[1] == self.M1
+        assert Y.shape[1] == self.M2
+        assert X.shape[0] == Y.shape[0]
+        n = X.shape[0]
+        self.N = self.N + n
+        d = np.repeat(1, n)
+        s = summarize_XYz(X, Y, d)[:, :, [0, 2, 4, 6]]
+        self.m = self.m + s
+
+
+class SummaryXYz:
+    def __init__(self, X_names, Y_names, z_name):
+        # name of random variables
+        self.vars_labels = {'set1': np.array(X_names),
+                            'set2': np.array(Y_names)}
+        self.z_name = z_name
+        self.M1 = len(X_names)
+        self.M2 = len(Y_names)
+        # set1: summary statistics for the joint distribution of xz, x is one
+        #  of the random variables in X. dimension, M1 x 4
+        # set2: summary statistics for the joint distribution of yz, y is one
+        #  of the random variables in Y. dimension, M2 x 4
+        # column: counts for joint distribution of xz or yz in the following
+        # order: ++, +-, -+, --
+        self.m1 = {'set1': np.zeros([self.M1, 4]),
+                   'set2': np.zeros([self.M2, 4])}
+
+        # summary statistic for the joint distribution of xyz, x is one of
+        # the random variables in X, y is one of the random variables in Y
+        # dimension 1: number of random variables in X
+        # dimension 2: number of random variables in Y
+        # dimension 3: counts for joint distribution of xyz in the
+        # following order: +++, ++-, +-+, +--, -++, -+-, --+, ---
+        self.m2 = np.zeros([self.M1, self.M2, 8])
+
+        # count of 1s of z
+        self.case_N = 0
+        # count of 0s of z
+        self.control_N = 0
+
+        self.S = np.empty(1)
+
+    def add_batch(self, P1, P2, d):
+        """
+        Add a batch of samples for the current disease. Calling this
+        function automatically update summary statistics.
+        :param P: a batch_size X M matrix of phenotype profiles
+        :param d: a batch_size vector of binary values representing
+        the presence (1) or absence (0) of the disease
+        :return: None
+        """
+        self.m1, self.m2, self.case_N, self.control_N = summarize(
+            P1, P2, d, current=[self.m1, self.m2, self.case_N, self.control_N])
 
 class MutualInformation:
 
@@ -538,10 +611,9 @@ def mf_Xz(summary_Xd, summary_z):
     Given the summary statistics for single phenotypes, return the mutual
     information between each of them and diagnosis
     :param summary_Xd: summary statistics for the joint distribution of
-    diagnosis*phenotype (Phenotype:diagnosis(++, +-, -+, --)
-    :param case_N: total count of cases
-    :param control_N: total count of controls
-    :return: mutual information of single phenotypes and diagnosis
+    each x in X and z (++, +-, -+, --)
+    :param summary_z: summary statistics for random variable z (+, -)
+    :return: a vector of mutual information between each x in X and z
     '''
     case_N, control_N = summary_z
     M = summary_Xd.shape[0]
@@ -565,12 +637,12 @@ def mf_Xz(summary_Xd, summary_z):
 
 def mf_XY_z(summary_XYz, summary_z):
     '''
-    Given the summary statistics for phenotype pairs, return the mutual
-    information between each of them and diagnosis
-    :param summary_XYz:
-    :param case_N:
-    :param control_N:
-    :return:
+    Given the summary statistics for XYz, return the mutual
+    information between pairs of XY and z
+    :param summary_Xd: summary statistics for the joint distribution of xy
+    and z (++, +-, -+, --) for x in X and y in Y
+    :param summary_z: summary statistics for random variable z (+, -)
+    :return: the mutual information between joint distribution XY and z
     '''
     case_N, control_N = summary_z
     N = case_N + control_N
@@ -625,3 +697,53 @@ def entropy(X):
     temp[non_zero_idx] = -p[non_zero_idx] * np.log2(p[non_zero_idx])
     entropies = np.sum(temp, axis=-1).squeeze()
     return entropies
+
+def mf_XY_given_z(summary_XYz, summary_z):
+    """
+    Given the summary statistics, return the mutual information between X
+    and Y conditioned on z. For single random variables x, y, z, the equation
+    to compute I(x, y|z):
+    I(x, y|z) = sum(p(x,y,z) * log2(p(z) * p(x, y, z) / p(x, z) * p(y, z)),
+    x, y, z take all values in their space
+    :param summary_Xd: summary statistics for the joint distribution of xy
+    and z (++, +-, -+, --) for x in X and y in Y
+    :param summary_z: summary statistics for random variable z (+, -)
+    :return: the mutual information between joint distribution XY given z
+
+    """
+    case_N, control_N = summary_z
+    N = case_N + control_N
+    prob_diag = case_N / N
+    M1, M2 = summary_XYz.shape[0:2]
+    # dimension: M1, M2, 8
+    # last axis: +++, ++-, +-+, +--, -++, -+-, --+, --- for xyz joint
+    # distribution
+    prob = summary_XYz / N
+
+    # calculate Xz joint prob, order ++, +-, -+, --
+    prob_Xz = np.sum(np.stack((prob[:, :, [0,1,4,5]], prob[:, :, [2,3,6,7]]),
+                              axis=-1),axis=-1)
+    ## need to repeat the values in the order: ++, +-, ++, +-, -+, --, -+, --
+    prob_Xz = np.tile(prob_Xz.reshape([M1, M2, 2, 2]), 2).reshape([M1, M2, 8,
+               1]).squeeze()
+
+    # calculate Yz joint prob, order ++, +-, -+, --
+    prob_Yz = np.sum(prob.reshape([M1, M2, 2, 4]), axis=2)
+    ## repeat the values twice in the order: ++, +-, -+, --, ++, +-, -+, --
+    prob_Yz = np.tile(prob_Yz, [1, 1, 2])
+
+    # format z dimension in the order: +, -, +, -, +, -, +, -
+    prob_z = np.tile(np.array([prob_diag, 1-prob_diag]), [4]).reshape([1, 1, 8])
+
+    temp = np.zeros([M1, M2, 8])
+    non_zero_valued_indices = np.logical_and(prob != 0,
+                                             prob_Xz*prob_Yz != 0)
+
+    temp[non_zero_valued_indices] = prob[non_zero_valued_indices] * \
+                                    np.log2((prob_z * prob)[non_zero_valued_indices] /
+                                    (prob_Xz[non_zero_valued_indices] * prob_Yz[non_zero_valued_indices]))
+    mf_XY_condition_on_z = np.sum(temp, axis=-1)
+    return mf_XY_condition_on_z
+
+
+
