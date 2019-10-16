@@ -1,0 +1,133 @@
+---
+title: "MIMIC data analysis"
+output: html_notebook
+---
+
+Load data
+```{r}
+library(tidyverse)
+df <- read.csv("/Users/zhangx/git/MIMIC_HPO/data/ml_df_038_primary_only.csv")
+```
+
+The values of each phenotype is the number of encounters that a patient was assigned with the abnormal finding. We binarize it to 0 (abnormaly never identified) or 1 (abnormality identified once or more before diagnosis)
+```{r}
+df_binary <- df %>% mutate_at(vars(starts_with("HP")), function(x) as.integer(x > 0))
+```
+
+remove columns with too few variations--many phenotypes were rarely seen or too frequently seen. They are not informative and should be removed.
+TODO: optimize parameters
+```{r}
+library(caret)
+rownames(df_binary) <- df_binary$SUBJECT_ID
+df_binary$SUBJECT_ID <- NULL
+head(df_binary[1:10, 1:10])
+offset = 4
+low_var_features <- nearZeroVar(df_binary[, offset:ncol(df_binary)])
+```
+
+```{r}
+df_remove_low_var <- df_binary[, -(low_var_features + offset - 1)]
+```
+
+
+plot age. Mainly senior patients, some new borns. 
+patients of 300 years of age, tell me your secret?
+TODO: remove patients of abnormal ages. They are errors. 
+```{r}
+sum(df_remove_low_var$DIAGNOSED)
+ggplot(df_remove_low_var) + geom_histogram(aes(x=AGE))
+```
+down sample negative classes
+```{r}
+down_sample_negative <- function(df){
+  pos <- df %>% filter(DIAGNOSED == 1)
+  neg <- df %>% filter(DIAGNOSED == 0)
+  count_pos = nrow(pos)
+  count_neg = nrow(neg)
+  sample_index = sample(1:count_neg, count_pos)
+  neg_sampled <- neg[sample_index,]
+  balanced <- pos %>% union(neg_sampled)
+  return (balanced)
+}
+```
+```{r}
+df_remove_low_var_balanced <- down_sample_negative(df_remove_low_var)
+```
+
+Perform logistic regression, control gender and age
+```{r}
+df_logistic = df_remove_low_var_balanced
+LENGTH = ncol(df_logistic) - offset + 1
+HPO <- vector(length = LENGTH, mode = 'character')
+weight <- vector(length = LENGTH, mode = 'numeric')
+sd.error <- vector(length = LENGTH, mode = 'numeric')
+p <- vector(length = LENGTH, mode = 'numeric')
+for (i in 1:LENGTH){
+  df_model <- data_frame(DIAGNOSED = df_logistic$DIAGNOSED, GENDER = df_logistic$GENDER, AGE = df_logistic$AGE, PHENOTYPE=as.integer(df_logistic[[i + offset - 1]] > 0))
+  #print(unique(df_model$PHENOTYPE))
+  #print(as.integer(df_remove_low_var[[i + offset - 1]] > 0))
+  #model <- glm(df_remove_low_var$DIAGNOSED ~ df_remove_low_var$GENDER + I(as.integer(df_remove_low_var[[i + offset - 1]] > 0)), family = binomial(link = "logit"), maxit = 50)
+  model <- glm(DIAGNOSED ~ GENDER + PHENOTYPE, data = df_model, family = binomial(link = "logit"), maxit = 50 )
+  #print(summary(model))
+  coff = summary(model)$coefficients[3, ]
+  #print(coff)
+  HPO[i] = colnames(df_remove_low_var)[i + offset - 1]
+  weight[i] = coff[1]
+  sd.error[i] = coff[2]
+  p[i] = coff[4]
+}
+
+results <- data_frame(HPO, weight, sd.error, p)
+```
+
+annotate term ids with their labels. 
+```{r}
+hpo <- read.csv("/Users/zhangx/git/HushToFhir/data/hpoTermList.txt", sep='\t', header = TRUE)
+head(hpo)
+```
+
+Phenotypes strongly associated with sepsis diagnosis. 
+```{r}
+results %>% mutate(HPO=str_replace(HPO, '\\.', ':')) %>% left_join(hpo, by = c("HPO" = "termId")) %>% arrange(-weight) %>% head(n = 20)
+```
+
+Try a couple machine learning approach for sepsis prediction from phenotypes
+```{r}
+df_ml <- df_remove_low_var_balanced
+df_ml$DIAGNOSED <- as.factor(ifelse(df_ml$DIAGNOSED == 0, "control", "case"))
+idx = createDataPartition(df_ml$DIAGNOSED, p = 0.7, list = FALSE)
+training = df_ml[idx, ]
+testing = df_ml[-idx, ]
+```
+
+Random forest. There is clearly a strong predictive power. 
+TODO: more optimization; define features more carefully; think about how to combine phenotypes from labs and phenotypes from radiology reports
+```{r}
+library(doSNOW)
+train.ctrl.rf = trainControl(method = "repeatedcv", number = 5, repeats = 1, savePredictions = T, search = "grid")
+tunegrid <- expand.grid(.mtry = c(10))
+c1 <- makeCluster(3, type = "SOCK")
+registerDoSNOW(c1)
+# one can specify ntree = 300, but default works equally well
+# , preProcess = c("center","scale", "YeoJohnson")
+rf <- train(training[, colnames(training) != "DIAGNOSED"], training$DIAGNOSED, method = "rf", trControl = train.ctrl.rf, tuneGrid = tunegrid)
+stopCluster(c1)
+rf
+prediction <- predict(rf, testing[,colnames(testing) != "DIAGNOSED"])
+confusionMatrix(prediction, testing$DIAGNOSED)
+```
+
+try a boosting algorithm. 
+TODO: this is pretty slow
+```{r}
+library(doSNOW)
+train.ctrl = trainControl(method = "repeatedcv", number = 10, repeats = 3, verboseIter = TRUE)
+c1 <- makeCluster(3, type = "SOCK")
+registerDoSNOW(c1)
+gbm <- train(training[, colnames(training) != "DIAGNOSED"], training$DIAGNOSED, method = "gbm", trControl = train.ctrl, tuneLength = 5)
+stopCluster(c1)
+prediction <- predict(gbm, testing[,colnames(testing) != "DIAGNOSED"])
+cm <- confusionMatrix(prediction, testing$isFrequent)
+cm
+```
+
