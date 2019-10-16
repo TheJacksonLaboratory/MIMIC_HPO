@@ -208,55 +208,56 @@ class TestMF(unittest.TestCase):
                                          [0.1, -0.3, -0.5],
                                          [-0.2, -0.5, -0.3]]))
 
-    def test_class_constructor(self):
+    def test_SummaryXYz_constructor(self):
         disease_name = 'MONDO:heart failure'
         pl = np.array(['HP:001', 'HP:002', 'HP:003'])
-        heart_failure = mf.MutualInfoXYz(X_names=pl, Y_names=pl,
+        heart_failure = mf.SummaryXYz(X_names=pl, Y_names=pl,
                                          z_name=disease_name)
-        self.assertEqual(heart_failure.get_z_name(), 'MONDO:heart failure')
-        self.assertEqual(heart_failure.get_XY_names()['set1'].tolist(),
+        self.assertEqual(heart_failure.z_name, 'MONDO:heart failure')
+        self.assertEqual(heart_failure.vars_labels['set1'].tolist(),
                          pl.tolist())
         pl_reset = ['Hypokalemia', 'Hyperglycemia', 'Hypertension']
-        heart_failure.set_XY_labels(pl_reset, pl_reset)
-        self.assertEqual(heart_failure.get_XY_names()['set1'].tolist(),
+        heart_failure.vars_labels['set1'] = pl_reset
+        self.assertEqual(heart_failure.vars_labels['set1'],
                          pl_reset)
 
     def test_MutualInfoXYz(self):
-        heart_failure = mf.MutualInfoXYz(
+        summary = mf.SummaryXYz(
             X_names=['HP:001', 'HP:002', 'HP:003', 'HP:004'],
             Y_names=['HP:001', 'HP:002', 'HP:003', 'HP:004'],
             z_name='heart failure')
-        heart_failure.add_batch(self.P, self.P, self.d)
+        summary.add_batch(self.P, self.P, self.d)
+        heart_failure = mf.MutualInfoXYz(summary)
         S = heart_failure.pairwise_synergy()
         # update with the same set of data should not affect synergy
-        heart_failure.add_batch(self.P, self.P, self.d)
+        summary.add_batch(self.P, self.P, self.d)
+        heart_failure = mf.MutualInfoXYz(summary)
         S_updated = heart_failure.pairwise_synergy()
         self.assertEqual(S.all(), S_updated.all())
 
-        self.assertEqual(heart_failure.get_case_count(), 8)
-        self.assertEqual(heart_failure.get_control_count(), 6)
+        self.assertEqual(heart_failure.case_N, 8)
+        self.assertEqual(heart_failure.control_N, 6)
         synergies = {}
         synergies['heart failure'] = heart_failure
-        synergies['heart failure'].add_batch(self.P, self.P, self.d)
-        print(synergies['heart failure'].pairwise_synergy())
         heart_failure.__getattribute__('m1')
 
-    def test_SynergyWithinSet(self):
-        heart_failure = mf.MutualInfoXXz('heart failure',
-                                         ['HP:001', 'HP:002','HP:003', 'HP:004'])
-        heart_failure.add_batch(self.P, self.d)
+    def test_MF_withinSet(self):
+        labels = ['HP:001', 'HP:002','HP:003', 'HP:004']
+        summary = mf.SummaryXYz(X_names=labels,
+                                Y_names=labels,
+                                z_name='heart failure')
+        summary.add_batch(self.P, self.P, self.d)
+        heart_failure = mf.MutualInfoXYz(summary)
         S = heart_failure.pairwise_synergy()
         # update with the same set of data should not affect synergy
-        heart_failure.add_batch(self.P, self.d)
+        summary.add_batch(self.P, self.P, self.d)
+        heart_failure = mf.MutualInfoXYz(summary)
         S_updated = heart_failure.pairwise_synergy()
         self.assertEqual(S.all(), S_updated.all())
 
-        self.assertEqual(heart_failure.get_case_count(), 8)
-        self.assertEqual(heart_failure.get_control_count(), 6)
-        synergies = {}
-        synergies['heart failure'] = heart_failure
-        synergies['heart failure'].add_batch(self.P, self.d)
-        print(synergies['heart failure'].pairwise_synergy())
+        self.assertEqual(heart_failure.case_N, 8)
+        self.assertEqual(heart_failure.control_N, 6)
+
 
 
 if __name__ == '__main__':

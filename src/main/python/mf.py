@@ -10,8 +10,16 @@ logger = logging.getLogger(__name__)
 
 class SummaryXY:
     """
-    Class to represent the summary statistics of X, Y. X, Y each is a vector
-    of random variables.
+    Class to compute the summary statistics between two random variables xy,
+    where x, y are random variables in X, Y. The values of all random variables
+    are binary (0 or 1). The class is a vectorized implementation of
+    counting summary statistics between two binary random variables. It is
+    instantiated by providing a list of random variable names for X,
+    and a list of random variable names for Y. It is updated by calling the
+    add_batch method with two matrices, one for X values (dimension N X M1)
+    and the other for Y values (dimension N X M2), where M1 is the size of
+    random variables in X and M2 is the size of random variables in Y,
+    N is the number of observations.
     """
     def __init__(self, X_names, Y_names):
         self.X_names = np.array(X_names)
@@ -39,6 +47,20 @@ class SummaryXY:
 
 
 class SummaryXYz:
+    """
+    Class to compute the summary statistics among three random variables xyz,
+    where x, y are random variables in X, Y and z is a single random variable.
+    The values of all random variables are binary (0 or 1). The class is
+    vectorized implementation of
+    counting summary statistics three binary random variables xyz. It is
+    instantiated by providing a list of random variable names for X,
+    a list of random variable names for Y and the name for z. It is updated by
+    calling the add_batch method with two matrices, one for X values (
+    dimension N x M1) and the other for Y values (dimension N x M2), and one
+    vector for z (1 x N), where M1 is the size of random variables in X and
+    M2 is the size of random variables in Y,
+    N is the number of observations.
+    """
     def __init__(self, X_names, Y_names, z_name):
         # name of random variables
         self.vars_labels = {'set1': np.array(X_names),
@@ -68,8 +90,6 @@ class SummaryXYz:
         # count of 0s of z
         self.control_N = 0
 
-        self.S = np.empty(1)
-
     def add_batch(self, P1, P2, d):
         """
         Add a batch of samples for the current disease. Calling this
@@ -82,37 +102,6 @@ class SummaryXYz:
         self.m1, self.m2, self.case_N, self.control_N = summarize(
             P1, P2, d, current=[self.m1, self.m2, self.case_N, self.control_N])
 
-class MutualInformation:
-
-    def __init__(self, x_name, y_name):
-        self.x_name = x_name
-        self.y_name = y_name
-        self.x = np.array([])
-        self.y = np.array([])
-
-    def add_batch(self, x, y):
-        assert len(x) == len(y)
-        self.x = np.concatenate((self.x.reshape([1, -1]), np.array(
-            x).reshape([1, -1])), axis=1)
-        self.y = np.concatenate((self.y.reshape([1, -1]), np.array(
-            y).reshape([1, -1])), axis=1)
-
-    def mf(self):
-        N = len(self.x)
-        df = pd.DataFrame(data={'x_value': self.x, 'y_value': self.y})
-        # count the observations
-        dist = df.groupby(['x_value', 'y_value']).size.reset_index().rename(
-            columns={0: 'N'})
-        # partition the observations by x and return the total count for x value
-        # same for y
-        dist['x_count'] = dist.groupby('x_value').N.transform('count')
-        dist['y_count'] = dist.groupby('y_value').N.transform('count')
-        dist['p'] = dist['N'] / N
-        dist['p_x'] = dist['x_count'] / N
-        dist['p_y'] = dist['y_count'] / N
-        mf = np.sum(dist.p * np.log2(dist.p / (dist.p_x * dist.p_y)))
-        return mf
-
 
 class MutualInfoXY:
     """
@@ -121,29 +110,13 @@ class MutualInfoXY:
     whose values are binary (0 or 1).
     """
 
-    def __init__(self, X_names, Y_names):
-        self.X_names = np.array(X_names)
-        self.Y_names = np.array(Y_names)
+    def __init__(self, summaryXY):
+        self.X_names = summaryXY.X_names
+        self.Y_names = summaryXY.Y_names
         self.M1 = len(self.X_names)
         self.M2 = len(self.Y_names)
-        self.m = np.zeros([self.M1, self.M2, 4])
-        self.N = 0
-
-    def add_batch(self, X, Y):
-        """
-        Add a batch of observations for X and Y
-        :param X: a N x M1 matrix of binary values for random variables in X
-        :param Y: a N x M2 matrix of binary values for random variables in Y
-        :return: updated summary statistics of X and Y
-        """
-        assert X.shape[1] == self.M1
-        assert Y.shape[1] == self.M2
-        assert X.shape[0] == Y.shape[0]
-        n = X.shape[0]
-        self.N = self.N + n
-        d = np.repeat(1, n)
-        s = summarize_XYz(X, Y, d)[:, :, [0, 2, 4, 6]]
-        self.m = self.m + s
+        self.m = summaryXY.m
+        self.N = summaryXY.N
 
     def mf(self):
         """
@@ -209,12 +182,9 @@ class MutualInfoXYz:
 
     The class is a vectorized implementation, which means X, Y are two lists of
     random variables [X1, X2, ...] and [Y1, Y2, ...]. Z is a single random
-    variable. The class is initialized by providing the names of Z (a string),
-    X (a list of strings) and Y (a list of strings. An instance of the
-    class takes in batches of data, a value vector for Z, a matrix for X and
-    a matrix for Y, and automatically updates summary statistics. The
-    mutual information between Z and each random variable of X, each random
-    variable of Y, and the joint distribution of (X, Y),
+    variable. The class is initialized by providing an instance of
+    SummaryXYz. The mutual information between Z and each random variable of
+    X, each random variable of Y, and the joint distribution of (X, Y),
     and the pairwise synergy between the joint distribution of X and Y in
     respect to Z are returned.
 
@@ -233,89 +203,28 @@ class MutualInfoXYz:
     interacting genes. Molecular System Biology 3:83
     """
 
-    def __init__(self, X_names, Y_names, z_name):
+    def __init__(self, summaryXYz):
         # disease id
-        self.disease = z_name
-        self.M1 = len(X_names)
-        self.M2 = len(Y_names)
+        self.z_name = summaryXYz.z_name
+        self.M1 = len(summaryXYz.vars_labels['set1'])
+        self.M2 = len(summaryXYz.vars_labels['set2'])
         # summary statistic for phenotype*diagnosis joint distribution
         # rows: phenotypes
         # column: ++, +-, -+, -- of phenotype*diagnosis joint distribution
-        self.m1 = {'set1': np.zeros([self.M1, 4]),
-                   'set2': np.zeros([self.M2, 4])}
+        self.m1 = summaryXYz.m1
         # summary statistic for phenotype_pair*diagnosis joint distribution
         # dimension 1: phenotype 1
         # dimension 2: phenotype 2
         # dimension 3: +++, ++-, +-+, +--, -++, -+-, --+, --- of phenotype1
         # * phenotype 2 * diagnosis joint distribution
-        self.m2 = np.zeros([self.M1, self.M2, 8])
+        self.m2 = summaryXYz.m2
         # count of positive diagnoses
-        self.case_N = 0
+        self.case_N = summaryXYz.case_N
         # count of negative diagnoses
-        self.control_N = 0
+        self.control_N = summaryXYz.control_N
         # name of phenotypes
-        self.vars_labels = {'set1': np.array(X_names),
-                            'set2': np.array(Y_names)}
+        self.vars_labels = summaryXYz.vars_labels
         self.S = np.empty(1)
-
-    def set_XY_labels(self, vars_X_label, vars_Y_label):
-        """
-        Set the label of phenotypes
-        :param phenotype_list: a string vector for the names of phenotypes
-        :return: None
-        """
-        assert len(vars_X_label) == self.M1
-        assert len(vars_Y_label) == self.M2
-        self.vars_labels['set1'] = np.array(vars_X_label)
-        self.vars_labels['set2'] = np.array(vars_Y_label)
-
-    def get_z_name(self):
-        """
-        Function to get the disease id
-        :return: disease id
-        """
-        return self.disease
-
-    def get_XY_names(self):
-        """
-        Function to get the phenotype list
-        :return: phenotype list
-        """
-        return self.vars_labels
-
-    def get_case_count(self):
-        """
-        Function to get the total count of cases
-        :return: count of positive diagnoses
-        """
-        return self.case_N
-
-    def get_control_count(self):
-        """
-        Function to get the total count of controls
-        :return: count of negative diagnoses
-        """
-        return self.control_N
-
-    def get_sample_size(self):
-        """
-        Function to get the total count of cases and controls
-        :return: total sample size
-        """
-        return self.case_N + self.control_N
-
-    def add_batch(self, P1, P2, d):
-        """
-        Add a batch of samples for the current disease. Calling this
-        function automatically update summary statistics.
-        :param P: a batch_size X M matrix of phenotype profiles
-        :param d: a batch_size vector of binary values representing
-        the presence (1) or absence (0) of the disease
-        :return: None
-        """
-
-        self.m1, self.m2, self.case_N, self.control_N = summarize(
-            P1, P2, d, current=[self.m1, self.m2, self.case_N, self.control_N])
 
     def mutual_information(self):
         """
@@ -362,86 +271,6 @@ class MutualInfoXYz:
             S.flat, 'p': p_values.flat}).sort_values(by='synergy', ascending=False).reset_index(
             drop=True)
         return df
-
-
-class MutualInfoXXz:
-    """
-    This is a special case of the Synergy class. It only deals with one set
-    of independent variables. The aim is to analyze the pairwise synergy
-    between each random variables within the set in respect to the dependent
-    variable.
-    """
-
-    def __init__(self, dependent_var_name, independent_var_names):
-        self.synergy = MutualInfoXYz(z_name=dependent_var_name,
-                                     X_names=independent_var_names,
-                                     Y_names=independent_var_names)
-
-    def set_independent_labels(self, phenotype_list):
-        self.synergy.set_XY_labels(phenotype_list)
-
-    def get_independent_var_names(self):
-        """
-        Function to get the phenotype list
-        :return: phenotype list
-        """
-        return self.synergy.get_XY_names()['set1']
-
-    def get_case_count(self):
-        """
-        Function to get the total count of cases
-        :return: count of positive diagnoses
-        """
-        return self.synergy.case_N
-
-    def get_control_count(self):
-        """
-        Function to get the total count of controls
-        :return: count of negative diagnoses
-        """
-        return self.synergy.control_N
-
-    def get_sample_size(self):
-        """
-        Function to get the total count of cases and controls
-        :return: total sample size
-        """
-        return self.synergy.case_N + self.synergy.control_N
-
-    def add_batch(self, P, d):
-        """
-        Add a batch of samples for the current disease. Calling this
-        function automatically update summary statistics.
-        :param P: a batch_size X M matrix of phenotype profiles
-        :param d: a batch_size vector of binary values representing
-        the presence (1) or absence (0) of the disease
-        :return: None
-        """
-        self.synergy.add_batch(P, P, d)
-
-    def mutual_information(self):
-        """
-        Calculate and return the mutual information between individual
-        phenotypes and diagnosis, and between phenotype pairs and diagnosis.
-        :return: two arrays--mutual information between individual phenotypes
-        and the diagnosis, and mutual information between phenotype pairs
-        and the diagnosis
-        """
-        I, II = self.synergy.mutual_information()
-        return I['set1'], II
-
-    def pairwise_synergy(self):
-        """
-        Calculate the pairwise synergy of phenotype pairs for the current disease.
-        :return: the synergy of phenotype pairs for the current disease
-        """
-        return self.synergy.pairwise_synergy()
-
-    def pairwise_synergy_labeled(self):
-        return self.synergy.pairwise_synergy_labeled()
-
-    def pairwise_synergy_labeled_with_p_values(self, p_values):
-        return self.synergy.pairwise_synergy_labeled_with_p_values(p_values)
 
 
 def summarize_z(z):
