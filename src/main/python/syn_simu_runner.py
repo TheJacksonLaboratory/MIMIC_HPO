@@ -4,6 +4,7 @@ import os.path
 from mf_random import SynergyRandomizer
 import logging.config
 import numpy as np
+import math
 
 log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              'log_config.conf')
@@ -35,7 +36,8 @@ def main():
     simulate_parser.add_argument('-cpu', help='specify the number of available cpu',
                         default=None, type=int, dest='cpu')
     simulate_parser.add_argument('-disease', help='specify if only to analyze such disease',
-                                 default=[], dest='disease_of_interest')
+                                 default=[], dest='disease_of_interest',
+                                 type=str)
     simulate_parser.set_defaults(func=simulate)
 
     estimate_parser = subparser.add_parser('estimate',
@@ -48,7 +50,8 @@ def main():
     estimate_parser.add_argument('-o', '--ouput', help='output dir',
                                  action='store', dest='out_dir')
     estimate_parser.add_argument('-disease', help='specify if only to analyze such disease',
-                                 default=[], dest='disease_of_interest')
+                                 default=[], dest='disease_of_interest',
+                                 type=str)
     estimate_parser.set_defaults(func=estimate)
 
     args = parser.parse_args()
@@ -113,7 +116,6 @@ def estimate(args):
         logger.info('number of diseases to run simulations for {}'.format(
             len(disease_synergy_map)))
 
-    p_map = {}
     for disease, synergy in disease_synergy_map.items():
         if disease_of_interest is not None and \
                         disease not in disease_of_interest:
@@ -122,15 +124,14 @@ def estimate(args):
         empirical_distribution = load_distribution(dist_path, disease)
         serialize_empirical_distributions(empirical_distribution,
              os.path.join(out_path, disease +
-                          'empirical_distribution_subset.obj'))
+                          '_empirical_distribution_subset.obj'))
         randmizer.empirical_distribution = empirical_distribution
         p = randmizer.p_value()
-        p_map[disease] = p
 
-    p_map_path = os.path.join(out_path, 'p_value_map.obj')
-    with open(p_map_path, 'wb') as f:
-        pickle.dump(p_map, f, protocol=2)
-    return p_map
+    p_path = os.path.join(out_path, 'p_value_{}.obj'.format(disease_of_interest))
+    with open(p_path, 'wb') as f:
+        pickle.dump(p, f, protocol=2)
+    return p
 
 
 def load_distribution(dir, disease_prefix):
@@ -152,11 +153,12 @@ def load_distribution(dir, disease_prefix):
 
 
 def serialize_empirical_distributions(distribution, path):
-    M = distribution.shape[0]
+    M1 = distribution.shape[0]
+    M2 = distribution.shape[1]
     N = distribution.shape[2]
-    sampling_1d_size = np.minimum(5, M)
-    i_index = np.random.choice(np.arange(M), sampling_1d_size, replace=False)
-    j_index = np.random.choice(np.arange(M), sampling_1d_size, replace=False)
+    sampling_1d_size = min([M1, M2, 5])
+    i_index = np.random.choice(np.arange(M1), sampling_1d_size, replace=False)
+    j_index = np.random.choice(np.arange(M2), sampling_1d_size, replace=False)
     sampled_empirical_distributions = np.zeros([sampling_1d_size,
                                                 sampling_1d_size, N])
     for i in np.arange(sampling_1d_size):
@@ -166,7 +168,6 @@ def serialize_empirical_distributions(distribution, path):
 
     with open(path, 'wb') as f:
         pickle.dump(sampled_empirical_distributions, file=f, protocol=2)
-
 
 
 if __name__=='__main__':
