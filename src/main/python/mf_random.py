@@ -15,11 +15,7 @@ logger = logging.getLogger(__name__)
 class SynergyRandomizer:
 
     def __init__(self, synergy_to_simulate):
-        # TODO: how to check type with isinstance call
-        if str(type(synergy_to_simulate)).find("SynergyWithinSet") != -1:
-            synergy = synergy_to_simulate.synergy
-        else:
-            synergy = synergy_to_simulate
+        synergy = synergy_to_simulate
         self.case_N = synergy.case_N
         self.control_N = synergy.control_N
         self.m1 = synergy.m1
@@ -122,9 +118,9 @@ def synergy_random(disease_prevalence, phenotype_prob1, phenotype_prob2,
     """
     if seed is not None:
         np.random.seed(seed)
-    mocked = mf.Synergy(dependent_var_name='mocked',
-                        independent_X_names=np.arange(len(phenotype_prob1)),
-                        independent_Y_names=np.arange(len(phenotype_prob2)))
+    mocked = mf.SummaryXYz(X_names=np.arange(len(phenotype_prob1)),
+                        Y_names=np.arange(len(phenotype_prob2)),
+                        z_name='mocked')
     BATCH_SIZE = 100
     M1 = len(phenotype_prob1)
     M2 = len(phenotype_prob2)
@@ -148,7 +144,8 @@ def synergy_random(disease_prevalence, phenotype_prob1, phenotype_prob2,
         P2 = (P2 < phenotype_prob2.reshape([1, M2])).astype(int)
         mocked.add_batch(P1, P2, d)
     logger.debug('end simulation {}'.format(seed))
-    return mocked.pairwise_synergy()
+
+    return mf.MutualInfoXYz(mocked).pairwise_synergy()
 
 
 def create_empirical_distribution(diag_prevalence, phenotype_prob1,
