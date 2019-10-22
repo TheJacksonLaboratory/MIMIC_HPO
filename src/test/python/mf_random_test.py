@@ -92,8 +92,8 @@ class TestMFRandom(unittest.TestCase):
 
         self.assertEqual(deserialized.z_name, 'heart failure')
         self.assertEqual(deserialized.case_N, cases)
-        self.assertEqual(deserialized.pairwise_synergy().all(),
-                         self.heart_failure.pairwise_synergy().all())
+        self.assertEqual(deserialized.synergy_XY2z().all(),
+                         self.heart_failure.synergy_XY2z().all())
 
     def test_SynergyRandomiserforSynergy(self):
         randomiser = mf_random.SynergyRandomizer(self.heart_failure)

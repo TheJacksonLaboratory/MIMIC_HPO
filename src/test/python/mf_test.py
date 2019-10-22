@@ -169,8 +169,8 @@ class TestMF(unittest.TestCase):
                         3. 1. 0. 0. 0. 0. 1. 2'''.replace('\n', ' ').split(
             '. ')]).reshape([4, 4, 8])
         mf_XY_condition_on_z = mf.mf_XY_given_z(m2, m1)
-        print(mf_XY_condition_on_z)
-        print(m2)
+        #print(mf_XY_condition_on_z)
+        #print(m2)
         # +++, ++-, +-+, +--, -++, -+-, --+, ---
         self.assertAlmostEqual(mf_XY_condition_on_z[0, 0], 3/7 * np.log2(3/7
              * (4/7) / (3/7 * (3/7))) + 1/7 * np.log2(1/7 * (3/7) / (1/7 * (
@@ -194,8 +194,6 @@ class TestMF(unittest.TestCase):
                                0 +
                                0 +
                                2/7 * np.log2(2/7 * 3/7 / (2/7 * 2/7)))
-
-
 
     def test_synergy(self):
         I = np.array([0.1, 0.2, 0.3])
@@ -228,11 +226,11 @@ class TestMF(unittest.TestCase):
             z_name='heart failure')
         summary.add_batch(self.P, self.P, self.d)
         heart_failure = mf.MutualInfoXYz(summary)
-        S = heart_failure.pairwise_synergy()
+        S = heart_failure.synergy_XY2z()
         # update with the same set of data should not affect synergy
         summary.add_batch(self.P, self.P, self.d)
         heart_failure = mf.MutualInfoXYz(summary)
-        S_updated = heart_failure.pairwise_synergy()
+        S_updated = heart_failure.synergy_XY2z()
         self.assertEqual(S.all(), S_updated.all())
 
         self.assertEqual(heart_failure.case_N, 8)
@@ -248,11 +246,11 @@ class TestMF(unittest.TestCase):
                                 z_name='heart failure')
         summary.add_batch(self.P, self.P, self.d)
         heart_failure = mf.MutualInfoXYz(summary)
-        S = heart_failure.pairwise_synergy()
+        S = heart_failure.synergy_XY2z()
         # update with the same set of data should not affect synergy
         summary.add_batch(self.P, self.P, self.d)
         heart_failure = mf.MutualInfoXYz(summary)
-        S_updated = heart_failure.pairwise_synergy()
+        S_updated = heart_failure.synergy_XY2z()
         self.assertEqual(S.all(), S_updated.all())
 
         self.assertEqual(heart_failure.case_N, 8)

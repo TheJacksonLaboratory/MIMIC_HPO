@@ -53,6 +53,11 @@ class TestHpoUtil(unittest.TestCase):
         self.assertTrue(hpoutil.ancestor_descendent(self.hpo.graph, ancestor,
                                            descendent))
 
+        # the following are siblings
+        ancestor = 'HP:0002157'
+        descendent = 'HP:0031970'
+        self.assertFalse(hpoutil.ancestor_descendent(self.hpo.graph, ancestor,
+                                                    descendent))
 
 
 if __name__ == '__main__':

@@ -228,8 +228,8 @@ class MutualInfoXYz:
 
     def mutual_information(self):
         """
-        Calculate and return the mutual information between individual
-        phenotypes and diagnosis, and between phenotype pairs and diagnosis.
+        Calculate and return the mutual information between x and z,
+        or y and z, x and y are random variables in X and Y.
         :return: two arrays--mutual information between individual phenotypes
         and the diagnosis, and mutual information between phenotype pairs
         and the diagnosis
@@ -243,20 +243,61 @@ class MutualInfoXYz:
         II = mf_XY_z(self.m2, np.array([self.case_N, self.control_N]))
         return I, II
 
-    def pairwise_synergy(self):
+    def mutual_info_Xz(self):
+        """
+        Return the mutual information between x and z, x is a random variable in X
+        :return: a size M1 vector for the mutual information between each x-z
+        """
+        Ia, _, _ = mf_Xz(self.m1['set1'], np.array([self.case_N,
+                                                    self.control_N]))
+        return Ia
+
+    def mutual_info_Yz(self):
+        """
+        Return the mutual information between y and z, y is a random variable in Y
+        :return: a size M1 vector for the mutual information between each y-z
+        """
+        Ib, _, _ = mf_Xz(self.m1['set2'], np.array([self.case_N,
+                                                    self.control_N]))
+        return Ib
+
+    def mutual_info_XY_z(self):
+        """
+        Return the mutual information between the joint distribution of xy
+        and z. x, y are random variables in X and Y
+        :return: a M1 x M2 matrix, each element corresponding to the mutual
+        information between the joint distribution of xy and z
+        """
+        II = mf_XY_z(self.m2, np.array([self.case_N, self.control_N]))
+        return II
+
+    def mutual_info_XY_given_z(self):
+        """
+        Return the mutual information between x and y given the outcome of
+        z, x and y are random variables of X and Y
+        :return: a M1 x M2 matrix, each element corresponding to the
+        conditional mutual information between xy in respect to z.
+        """
+        mf_conditional = mf_XY_given_z(self.m2, np.array([self.case_N,
+                                                   self.control_N]))
+        return mf_conditional
+
+    def synergy_XY2z(self):
         """
         Calculate the pairwise synergy of phenotype pairs for the current disease.
         :return: the synergy of phenotype pairs for the current disease
         """
-        I, II = self.mutual_information()
-        self.S = synergy(I['set1'], I['set2'], II)
-        return self.S
+        Ia = self.mutual_info_Xz()
+        Ib = self.mutual_info_Yz()
+        II = self.mutual_info_XY_z()
+        S = synergy(Ia, Ib, II)
+        return S
 
     def pairwise_synergy_labeled(self):
         P1 = np.repeat(self.vars_labels['set1'], self.M2)
         P2 = np.tile(self.vars_labels['set2'], [self.M1])
         assert(len(P1) == len(P2))
-        S = self.pairwise_synergy()
+        S = self.synergy_XY2z()
         df = pd.DataFrame(data = {'P1': P1, 'P2': P2, 'synergy':
             S.flat}).sort_values(by='synergy', ascending=False).reset_index(
             drop=True)
@@ -266,7 +307,7 @@ class MutualInfoXYz:
         P1 = np.repeat(self.vars_labels['set1'], self.M2)
         P2 = np.tile(self.vars_labels['set2'], [self.M1])
         assert (len(P1) == len(P2))
-        S = self.pairwise_synergy()
+        S = self.synergy_XY2z()
         df = pd.DataFrame(data={'P1': P1, 'P2': P2, 'synergy':
             S.flat, 'p': p_values.flat}).sort_values(by='synergy', ascending=False).reset_index(
             drop=True)

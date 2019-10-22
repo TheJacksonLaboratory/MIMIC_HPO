@@ -20,7 +20,7 @@ class SynergyRandomizer:
         self.control_N = synergy.control_N
         self.m1 = synergy.m1
         self.m2 = synergy.m2
-        self.S = synergy.pairwise_synergy()
+        self.S = synergy.synergy_XY2z()
         logger.info('randomizer initiated')
 
     def simulate(self, per_simulation=None, simulations=100, cpu=None,
@@ -145,7 +145,7 @@ def synergy_random(disease_prevalence, phenotype_prob1, phenotype_prob2,
         mocked.add_batch(P1, P2, d)
     logger.debug('end simulation {}'.format(seed))
 
-    return mf.MutualInfoXYz(mocked).pairwise_synergy()
+    return mf.MutualInfoXYz(mocked).synergy_XY2z()
 
 
 def create_empirical_distribution(diag_prevalence, phenotype_prob1,
