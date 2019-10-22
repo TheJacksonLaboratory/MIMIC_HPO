@@ -3,8 +3,10 @@ import src.main.python.hpoutil as hpoutil
 
 class TestHpoUtil(unittest.TestCase):
 
-    def setUp(self):
-        self.hpo = hpoutil.HPO('/Users/zhangx/git/human-phenotype-ontology/hp.obo')
+    @classmethod
+    def setUpClass(cls):
+        cls.hpo = hpoutil.HPO(
+            '/Users/zhangx/git/human-phenotype-ontology/hp.obo')
 
     def testConstructor(self):
         self.assertIsNotNone(self.hpo, 'failed to load in constructor call')
@@ -29,6 +31,9 @@ class TestHpoUtil(unittest.TestCase):
         descendent = 'HP:0001166'
         self.assertTrue(self.hpo.is_descendent_ancestor(descendent, ancestor))
         self.assertFalse(self.hpo.is_descendent_ancestor(ancestor, descendent))
+        ancestor = 'HP:0000001'
+        descendent = 'HP:0001939'
+        self.assertTrue(self.hpo.is_descendent_ancestor(descendent, ancestor))
 
     def test_has_dependent(self):
         ancestor = 'HP:0001238'
@@ -38,6 +43,16 @@ class TestHpoUtil(unittest.TestCase):
         self.assertTrue(self.hpo.has_dependency(ancestor, descendent))
         self.assertFalse(self.hpo.has_dependency(ancestor, unrelated))
         self.assertFalse(self.hpo.has_dependency(descendent, unrelated))
+        ancestor = 'HP:0000001'
+        descendent = 'HP:0001939'
+        self.assertTrue(self.hpo.has_dependency(descendent, ancestor))
+
+    def test_ancestor_descendent(self):
+        ancestor = 'HP:0000001'
+        descendent = 'HP:0001939'
+        self.assertTrue(hpoutil.ancestor_descendent(self.hpo.graph, ancestor,
+                                           descendent))
+
 
 
 if __name__ == '__main__':
