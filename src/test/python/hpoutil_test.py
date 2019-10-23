@@ -1,5 +1,6 @@
 import unittest
 import src.main.python.hpoutil as hpoutil
+import networkx
 
 class TestHpoUtil(unittest.TestCase):
 
@@ -23,17 +24,17 @@ class TestHpoUtil(unittest.TestCase):
     def test_is_ancestor_descent(self):
         ancestor = 'HP:0001238'
         descendent = 'HP:0001166'
-        self.assertTrue(self.hpo.is_ancestor_descendent(ancestor, descendent))
-        self.assertFalse(self.hpo.is_ancestor_descendent(descendent, ancestor))
+        self.assertTrue(self.hpo.is_ancestor_descendant(ancestor, descendent))
+        self.assertFalse(self.hpo.is_ancestor_descendant(descendent, ancestor))
 
     def test_is_descendent_ancestor(self):
         ancestor = 'HP:0001238'
         descendent = 'HP:0001166'
-        self.assertTrue(self.hpo.is_descendent_ancestor(descendent, ancestor))
-        self.assertFalse(self.hpo.is_descendent_ancestor(ancestor, descendent))
+        self.assertTrue(self.hpo.is_descendant_ancestor(descendent, ancestor))
+        self.assertFalse(self.hpo.is_descendant_ancestor(ancestor, descendent))
         ancestor = 'HP:0000001'
         descendent = 'HP:0001939'
-        self.assertTrue(self.hpo.is_descendent_ancestor(descendent, ancestor))
+        self.assertTrue(self.hpo.is_descendant_ancestor(descendent, ancestor))
 
     def test_has_dependent(self):
         ancestor = 'HP:0001238'
@@ -50,14 +51,15 @@ class TestHpoUtil(unittest.TestCase):
     def test_ancestor_descendent(self):
         ancestor = 'HP:0000001'
         descendent = 'HP:0001939'
-        self.assertTrue(hpoutil.ancestor_descendent(self.hpo.graph, ancestor,
-                                           descendent))
+        self.assertTrue(hpoutil.ancestor_descendant(self.hpo.graph, ancestor,
+                                                    descendent))
 
         # the following are siblings
         ancestor = 'HP:0002157'
         descendent = 'HP:0031970'
-        self.assertFalse(hpoutil.ancestor_descendent(self.hpo.graph, ancestor,
-                                                    descendent))
+        self.assertFalse(hpoutil.ancestor_descendant(self.hpo.graph, ancestor,
+                                                     descendent))
+        print(list(networkx.descendants(self.hpo.graph, descendent)))
 
 
 if __name__ == '__main__':

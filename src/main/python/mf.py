@@ -226,23 +226,6 @@ class MutualInfoXYz:
         self.vars_labels = summaryXYz.vars_labels
         self.S = np.empty(1)
 
-    def mutual_information(self):
-        """
-        Calculate and return the mutual information between x and z,
-        or y and z, x and y are random variables in X and Y.
-        :return: two arrays--mutual information between individual phenotypes
-        and the diagnosis, and mutual information between phenotype pairs
-        and the diagnosis
-        """
-        Ia, _, _ = mf_Xz(self.m1['set1'], np.array([self.case_N,
-                         self.control_N]))
-        Ib, _, _ = mf_Xz(self.m1['set2'], np.array([self.case_N,
-                         self.control_N]))
-        I = {'set1': Ia,
-             'set2': Ib}
-        II = mf_XY_z(self.m2, np.array([self.case_N, self.control_N]))
-        return I, II
-
     def mutual_info_Xz(self):
         """
         Return the mutual information between x and z, x is a random variable in X
@@ -293,7 +276,18 @@ class MutualInfoXYz:
         S = synergy(Ia, Ib, II)
         return S
 
-    def pairwise_synergy_labeled(self):
+    def formatted_result(self, p_value=None):
+        df = pd.DataFrame()
+        df['X'] = np.repeat(self.vars_labels['set1'], self.M2)
+        df['Y'] = np.tile(self.vars_labels['set2'], [self.M1])
+        df['mf_joint'] = self.mutual_info_XY_z().flat
+        df['mf_conditional'] = self.mutual_info_XY_given_z().flat
+        df['synergy'] = self.synergy_XY2z().flat
+        df['mf_Xz'] = np.repeat(self.mutual_info_Xz().flat, self.M2)
+        df['mf_Yz'] = np.tile(self.mutual_info_Yz().flat, [self.M2])
+        return df
+
+    def synergy_XY2z_df(self):
         P1 = np.repeat(self.vars_labels['set1'], self.M2)
         P2 = np.tile(self.vars_labels['set2'], [self.M1])
         assert(len(P1) == len(P2))
@@ -303,7 +297,7 @@ class MutualInfoXYz:
             drop=True)
         return df
 
-    def pairwise_synergy_labeled_with_p_values(self, p_values):
+    def synergy_XY2z_df_with_P_values(self, p_values):
         P1 = np.repeat(self.vars_labels['set1'], self.M2)
         P2 = np.tile(self.vars_labels['set2'], [self.M1])
         assert (len(P1) == len(P2))
