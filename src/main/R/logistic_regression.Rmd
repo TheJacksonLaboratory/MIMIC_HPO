@@ -9,6 +9,36 @@ library(tidyverse)
 df <- read.csv("/Users/zhangx/git/MIMIC_HPO/data/ml_df_038_primary_only.csv")
 ```
 
+Age distribution
+```{r}
+df_age_sex <- df %>% select(SUBJECT_ID, AGE, GENDER) %>% filter(AGE < 100) 
+print(sum(df_age_sex$AGE == 0)/nrow(df_age_sex))
+print(median(df_age_sex[df_age_sex$AGE != 0,]$AGE))
+
+# define the binwidth
+BINWIDTH = 10
+data_pyramid <- df_age_sex %>% 
+  rename(patient_num = SUBJECT_ID, age = AGE, sex_cd = GENDER) %>%
+  select(patient_num, age, sex_cd) %>% 
+  distinct() %>%
+  mutate(cat = as.factor(floor(age/BINWIDTH) + 1)) %>% # 0-10 year is cat 1; 10-20 is cat 2
+  group_by(sex_cd, cat) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  mutate(count = ifelse(sex_cd == "M", -count, count))
+  
+ageDistribution <- data_pyramid %>% na.omit() %>% 
+  ggplot() +
+  geom_bar(aes(x = cat, y = count, fill = sex_cd), stat = "identity") + 
+  scale_x_discrete(breaks = seq(2, 10, 2), labels = seq(1.5,9.5,2) * BINWIDTH) +
+  scale_y_continuous(breaks = seq(-5000, 5000, by = 2000), labels = abs(seq(-5000, 5000, by = 2000)/1000)) +
+  scale_fill_manual(name = "gender", values = c(M = "royalblue", F = "lightcoral"), breaks = c("M", "F"), labels = c("male", "female")) + xlab("age (years)") + ylab("count (x1,000)") +
+  coord_flip() + theme_bw() + theme(panel.grid = element_blank(), legend.position = "none", axis.title = element_text(size = 8), axis.text = element_text(size = 8), legend.text = element_text(size = 8), legend.title = element_text(size = 10))
+
+ageDistribution
+ggsave("/Users/zhangx/git/MIMIC_HPO/data/images/patient_sex_age_distribution.png", plot = ageDistribution, width = 2, height = 1.5)
+```
+
 The values of each phenotype is the number of encounters that a patient was assigned with the abnormal finding. We binarize it to 0 (abnormaly never identified) or 1 (abnormality identified once or more before diagnosis)
 ```{r}
 df_binary <- df %>% mutate_at(vars(starts_with("HP")), function(x) as.integer(x > 0))
@@ -35,7 +65,7 @@ patients of 300 years of age, tell me your secret?
 TODO: remove patients of abnormal ages. They are errors. 
 ```{r}
 sum(df_remove_low_var$DIAGNOSED)
-ggplot(df_remove_low_var) + geom_histogram(aes(x=AGE))
+
 ```
 down sample negative classes
 ```{r}
