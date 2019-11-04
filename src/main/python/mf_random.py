@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 class SynergyRandomizer:
 
-    def __init__(self, synergy_to_simulate):
-        synergy = synergy_to_simulate
-        self.case_N = synergy.case_N
-        self.control_N = synergy.control_N
-        self.m1 = synergy.m1
-        self.m2 = synergy.m2
-        self.S = synergy.synergy_XY2z()
+    def __init__(self, observed_summary_statistics):
+        observed = observed_summary_statistics
+        self.case_N = observed.case_N
+        self.control_N = observed.control_N
+        self.m1 = observed.m1
+        self.m2 = observed.m2
+        self.S = observed.synergy_XY2z()
         logger.info('randomizer initiated')
 
     def simulate(self, per_simulation=None, simulations=100, cpu=None,
@@ -43,7 +43,8 @@ class SynergyRandomizer:
         :param sampling: sampling times
         :return: p value matrix
         """
-        p = p_value_estimate(self.S, self.empirical_distribution, 'two.sided')
+        p = p_value_estimate(self.S, self.empirical_distribution['synergy'],
+                             'two.sided')
         if adjust == 'Bonferroni':
             test_times = len(np.triu(self.S))
             p = p * test_times
@@ -118,9 +119,11 @@ def synergy_random(disease_prevalence, phenotype_prob1, phenotype_prob2,
     """
     if seed is not None:
         np.random.seed(seed)
-    mocked = mf.SummaryXYz(X_names=np.arange(len(phenotype_prob1)),
+    mocked_XYz = mf.SummaryXYz(X_names=np.arange(len(phenotype_prob1)),
                         Y_names=np.arange(len(phenotype_prob2)),
                         z_name='mocked')
+    mocked_XY = mf.SummaryXY(X_names=np.arange(len(phenotype_prob1)),
+                        Y_names=np.arange(len(phenotype_prob2)))
     BATCH_SIZE = 100
     M1 = len(phenotype_prob1)
     M2 = len(phenotype_prob2)
@@ -142,10 +145,28 @@ def synergy_random(disease_prevalence, phenotype_prob1, phenotype_prob2,
         P2 = np.random.uniform(0, 1, actual_batch_size * M2).reshape([
             actual_batch_size, M2])
         P2 = (P2 < phenotype_prob2.reshape([1, M2])).astype(int)
-        mocked.add_batch(P1, P2, d)
+        mocked_XYz.add_batch(P1, P2, d)
+        mocked_XY.add_batch(P1, P2)
     logger.debug('end simulation {}'.format(seed))
 
-    return mf.MutualInfoXYz(mocked).synergy_XY2z()
+    # we need to retrieve the following information from our simulation:
+    # mutual information without considering diagnosis
+    # mutual information between X and z
+    # mutual information between Y and z
+    # mutual information between XY and z
+    # conditional mutual information between XY and z
+    # synergy between XY for z
+    results_to_return = dict()
+    results_to_return['mf_XY_omit_z'] = mf.MutualInfoXY(mocked_XY).mf()
+
+    mutualInfoXYz = mf.MutualInfoXYz(mocked_XYz)
+    results_to_return['mf_Xz'] = mutualInfoXYz.mutual_info_Xz()
+    results_to_return['mf_Yz'] = mutualInfoXYz.mutual_info_Yz()
+    results_to_return['mf_XY_z'] = mutualInfoXYz.mutual_info_XY_z()
+    results_to_return['mf_XY_given_z'] = mutualInfoXYz.mutual_info_XY_given_z()
+    results_to_return['synergy'] = mutualInfoXYz.synergy_XY2z()
+
+    return results_to_return
 
 
 def create_empirical_distribution(diag_prevalence, phenotype_prob1,
@@ -175,9 +196,21 @@ def create_empirical_distribution(diag_prevalence, phenotype_prob1,
     workers.close()
     workers.join()
     assert(len(results) == SIMULATION_SIZE)
-    empirical_distribution = np.stack([res.get() for res in results], axis=-1)
+    empirical_distributions = dict()
+    empirical_distributions['mf_XY_omit_z'] = \
+        np.stack([res.get()['mf_XY_omit_z'] for res in results], axis=-1)
+    empirical_distributions['mf_Xz'] = \
+        np.stack([res.get()['mf_Xz'] for res in results], axis=-1)
+    empirical_distributions['mf_Yz'] = \
+        np.stack([res.get()['mf_Yz'] for res in results], axis=-1)
+    empirical_distributions['mf_XY_z'] = \
+        np.stack([res.get()['mf_XY_z'] for res in results], axis=-1)
+    empirical_distributions['mf_XY_given_z'] =\
+        np.stack([res.get()['mf_XY_given_z'] for res in results], axis=-1)
+    empirical_distributions['synergy'] =\
+        np.stack([res.get()['synergy'] for res in results], axis=-1)
 
-    return empirical_distribution
+    return empirical_distributions
 
 
 if __name__=='__main__':
@@ -186,4 +219,4 @@ if __name__=='__main__':
     N = 5000
     dist = create_empirical_distribution(0.3, phenotype_p, phenotype_p,
                                   1000, N)
-    print(np.sum(dist, axis=-1) / N)
+    print(np.sum(dist['synergy'], axis=-1) / N)

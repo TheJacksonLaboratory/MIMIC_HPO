@@ -244,6 +244,15 @@ class MutualInfoXYz:
                                                     self.control_N]))
         return Ib
 
+    # def mutual_info_XY(self):
+    #     """
+    #     Return the mutual information between x and y regardless of z. x,
+    #     y are random variables in X and Y
+    #     :return: a M1 x M2 matrix, each element corresponding to the mutual
+    #     information between x and y. Information on z is discarded.
+    #     """
+    #
+
     def mutual_info_XY_z(self):
         """
         Return the mutual information between the joint distribution of xy

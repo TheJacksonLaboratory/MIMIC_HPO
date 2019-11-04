@@ -39,10 +39,17 @@ class TestMFRandom(unittest.TestCase):
         simulations = 100
         distribution = mf_random.create_empirical_distribution(diag_prevalence,
                                                         phenotype_prob,
-                                                                phenotype_prob,
+                                                        phenotype_prob,
                                                         sample_per_simulation,
                                                         simulations)
-        self.assertEqual(list(distribution.shape), [10, 10, 100])
+        self.assertEqual(list(distribution['mf_XY_omit_z'].shape),
+                         [10, 10, 100])
+        self.assertEqual(list(distribution['mf_Xz'].shape), [10, 100])
+        self.assertEqual(list(distribution['mf_Yz'].shape), [10, 100])
+        self.assertEqual(list(distribution['mf_XY_z'].shape), [10, 10, 100])
+        self.assertEqual(list(distribution['mf_XY_given_z'].shape), [10, 10,
+                                                                     100])
+        self.assertEqual(list(distribution['synergy'].shape), [10, 10, 100])
 
     def test_p_value_estimate(self):
         ordered = np.arange(24).reshape([2, 3, 4])
@@ -76,8 +83,7 @@ class TestMFRandom(unittest.TestCase):
         phenotype_prob = np.random.uniform(0, 1, 10)
         sample_per_simulation = 5000
         S = mf_random.synergy_random(disease_prevalence, phenotype_prob,
-                                      phenotype_prob,
-                              sample_per_simulation)
+                 phenotype_prob, sample_per_simulation)['synergy']
         np.testing.assert_almost_equal(S, np.zeros(S.shape), decimal=3)
 
     def test_serializing_instance(self):
