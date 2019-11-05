@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    HOME_pDIR = os.path.expanduser('~')
+    HOME_DIR = os.path.expanduser('~')
     parser = argparse.ArgumentParser()
     subparser = parser.add_subparsers(dest='command')
     simulate_parser = subparser.add_parser('simulate',
@@ -122,9 +122,9 @@ def estimate(args):
             continue
         randmizer = MutualInfoRandomizer(summary_statistics)
         empirical_distribution = load_distribution(dist_path, disease)
-        serialize_empirical_distributions(empirical_distribution,
-             os.path.join(out_path, disease +
-                          '_empirical_distribution_subset.obj'))
+        # serialize_empirical_distributions(empirical_distribution['synergy'],
+        #      os.path.join(out_path, disease +
+        #                   '_empirical_distribution_subset.obj'))
         randmizer.empirical_distribution = empirical_distribution
         p = randmizer.p_values()
 
@@ -149,7 +149,22 @@ def load_distribution(dir, disease_prefix):
             with open(path, 'rb') as f:
                 simulation = pickle.load(f)
                 simulations.append(simulation)
-    return np.concatenate(tuple(simulations), axis=-1)
+
+    empirical_distributions = dict()
+    empirical_distributions['mf_XY_omit_z'] = \
+        np.stack([res['mf_XY_omit_z'] for res in simulations], axis=-1)
+    empirical_distributions['mf_Xz'] = \
+        np.stack([res['mf_Xz'] for res in simulations], axis=-1)
+    empirical_distributions['mf_Yz'] = \
+        np.stack([res['mf_Yz'] for res in simulations], axis=-1)
+    empirical_distributions['mf_XY_z'] = \
+        np.stack([res['mf_XY_z'] for res in simulations], axis=-1)
+    empirical_distributions['mf_XY_given_z'] = \
+        np.stack([res['mf_XY_given_z'] for res in simulations], axis=-1)
+    empirical_distributions['synergy'] = \
+        np.stack([res['synergy'] for res in simulations], axis=-1)
+
+    return empirical_distributions
 
 
 def serialize_empirical_distributions(distribution, path):

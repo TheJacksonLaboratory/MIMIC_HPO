@@ -52,6 +52,11 @@ class TestSynSimuRunner(unittest.TestCase):
             args.disease_of_interest + '_' + str(args.job_id) +
                                        '_distribution.obj')
         self.assertTrue(os.path.exists(result_out_path))
+        with open(result_out_path, 'rb') as f:
+            dist = pickle.load(f)
+        for k, v in dist.items():
+            print(k)
+            print(v.shape)
 
     def test_serialize_empirical_distributions(self):
         distribution = np.random.randn(10000).reshape([10,10,-1])
