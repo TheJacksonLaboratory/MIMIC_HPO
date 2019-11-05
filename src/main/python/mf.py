@@ -8,6 +8,7 @@ log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 logging.config.fileConfig(log_file_path)
 logger = logging.getLogger(__name__)
 
+
 class SummaryXY:
     """
     Class to compute the summary statistics between two random variables xy,

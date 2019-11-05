@@ -106,14 +106,14 @@ class TestMFRandom(unittest.TestCase):
         # print(self.heart_failure.m1['set1'])
         # print(self.heart_failure.m2)
         randomiser.simulate(simulations=100)
-        p_matrix = randomiser.p_value()['synergy']
+        p_matrix = randomiser.p_values()['synergy']
         M = p_matrix.shape[0]
         print(p_matrix)
         # print(np.diagonal(p_matrix))
         # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
         self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *
                         (M * (M - 1) / 2))
-        p_matrix = randomiser.p_value('Bonferroni')
+        p_matrix = randomiser.p_values('Bonferroni')
         #print(p_matrix)
 
 

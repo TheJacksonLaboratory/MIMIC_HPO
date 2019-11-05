@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    HOME_DIR = os.path.expanduser('~')
+    HOME_pDIR = os.path.expanduser('~')
     parser = argparse.ArgumentParser()
     subparser = parser.add_subparsers(dest='command')
     simulate_parser = subparser.add_parser('simulate',
@@ -112,21 +112,21 @@ def estimate(args):
 
     print(args)
     with open(input_path, 'rb') as in_file:
-        disease_synergy_map = pickle.load(in_file)
+        mf_map = pickle.load(in_file)
         logger.info('number of diseases to run simulations for {}'.format(
-            len(disease_synergy_map)))
+            len(mf_map)))
 
-    for disease, synergy in disease_synergy_map.items():
+    for disease, summary_statistics in mf_map.items():
         if disease_of_interest is not None and \
                         disease not in disease_of_interest:
             continue
-        randmizer = MutualInfoRandomizer(synergy)
+        randmizer = MutualInfoRandomizer(summary_statistics)
         empirical_distribution = load_distribution(dist_path, disease)
         serialize_empirical_distributions(empirical_distribution,
              os.path.join(out_path, disease +
                           '_empirical_distribution_subset.obj'))
         randmizer.empirical_distribution = empirical_distribution
-        p = randmizer.p_value()
+        p = randmizer.p_values()
 
     p_path = os.path.join(out_path, 'p_value_{}.obj'.format(disease_of_interest))
     with open(p_path, 'wb') as f:

@@ -35,7 +35,7 @@ class MutualInfoRandomizer:
               phenotype_prob1, phenotype_prob2, per_simulation, simulations,
               cpu, job_id)
 
-    def p_value(self, adjust=None):
+    def p_values(self, adjust=None):
         """
         Estimate p values for each observed phenotype pair by comparing the
         observed synergy score with empirical distributions created by random
