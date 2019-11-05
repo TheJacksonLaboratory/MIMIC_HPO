@@ -102,13 +102,13 @@ class TestMFRandom(unittest.TestCase):
                          self.heart_failure.synergy_XY2z().all())
 
     def test_SynergyRandomiserforSynergy(self):
-        randomiser = mf_random.SynergyRandomizer(self.heart_failure)
+        randomiser = mf_random.MutualInfoRandomizer(self.heart_failure)
         # print(self.heart_failure.m1['set1'])
         # print(self.heart_failure.m2)
         randomiser.simulate(simulations=100)
-        p_matrix = randomiser.p_value()
+        p_matrix = randomiser.p_value()['synergy']
         M = p_matrix.shape[0]
-        #print(p_matrix)
+        print(p_matrix)
         # print(np.diagonal(p_matrix))
         # print(np.sum(np.triu(p_matrix < 0.05)) / (M * (M - 1) / 2))
         self.assertTrue(np.sum(np.triu(p_matrix < 0.05)) < 2 * 0.05 *

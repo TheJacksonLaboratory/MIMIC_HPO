@@ -1,7 +1,7 @@
 import pickle
 import argparse
 import os.path
-from mf_random import SynergyRandomizer
+from mf_random import MutualInfoRandomizer
 import logging.config
 import numpy as np
 import math
@@ -85,7 +85,7 @@ def simulate(args):
         if disease_of_interest is not None and \
                         disease not in disease_of_interest:
             continue
-        randmizer = SynergyRandomizer(synergy)
+        randmizer = MutualInfoRandomizer(synergy)
         if verbose:
             print('start calculating p values for {}'.format(disease))
         randmizer.simulate(per_simulation, simulations, cpu, job_id)
@@ -120,7 +120,7 @@ def estimate(args):
         if disease_of_interest is not None and \
                         disease not in disease_of_interest:
             continue
-        randmizer = SynergyRandomizer(synergy)
+        randmizer = MutualInfoRandomizer(synergy)
         empirical_distribution = load_distribution(dist_path, disease)
         serialize_empirical_distributions(empirical_distribution,
              os.path.join(out_path, disease +

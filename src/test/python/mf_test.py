@@ -235,9 +235,15 @@ class TestMF(unittest.TestCase):
 
         self.assertEqual(heart_failure.case_N, 8)
         self.assertEqual(heart_failure.control_N, 6)
-        synergies = {}
-        synergies['heart failure'] = heart_failure
-        heart_failure.__getattribute__('m1')
+
+        # test that we retrieved the correct mutual information between X and
+        #  Y from summary statistics of XYz
+        summary_XY = mf.SummaryXY(X_names=['HP:001', 'HP:002', 'HP:003', 'HP:004'],
+            Y_names=['HP:001', 'HP:002', 'HP:003', 'HP:004'])
+        summary_XY.add_batch(self.P, self.P)
+        mf_XY = mf.MutualInfoXY(summary_XY).mf()
+        np.testing.assert_array_equal(mf_XY,
+                                      heart_failure.mutual_info_XY_omit_z())
 
     def test_MF_withinSet(self):
         labels = ['HP:001', 'HP:002','HP:003', 'HP:004']

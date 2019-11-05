@@ -12,15 +12,15 @@ logging.config.fileConfig(log_file_path)
 logger = logging.getLogger(__name__)
 
 
-class SynergyRandomizer:
+class MutualInfoRandomizer:
 
     def __init__(self, observed_summary_statistics):
-        observed = observed_summary_statistics
-        self.case_N = observed.case_N
-        self.control_N = observed.control_N
-        self.m1 = observed.m1
-        self.m2 = observed.m2
-        self.S = observed.synergy_XY2z()
+        self.observed = observed_summary_statistics
+        self.case_N = self.observed.case_N
+        self.control_N = self.observed.control_N
+        self.m1 = self.observed.m1
+        self.m2 = self.observed.m2
+        self.empirical_distribution = {}
         logger.info('randomizer initiated')
 
     def simulate(self, per_simulation=None, simulations=100, cpu=None,
@@ -43,11 +43,51 @@ class SynergyRandomizer:
         :param sampling: sampling times
         :return: p value matrix
         """
-        p = p_value_estimate(self.S, self.empirical_distribution['synergy'],
-                             'two.sided')
+        # observed mutual information
+        mutualInfo_XYz = mf.MutualInfoXYz(self.observed)
+        mf_Xz = mutualInfo_XYz.mutual_info_Xz()
+        mf_Yz = mutualInfo_XYz.mutual_info_Yz()
+        mf_XY_z = mutualInfo_XYz.mutual_info_XY_z()
+        mf_XY_given_z = mutualInfo_XYz.mutual_info_XY_given_z()
+        synergy = mutualInfo_XYz.synergy_XY2z()
+        mf_XY_omit_z = mutualInfo_XYz.mutual_info_XY_omit_z()
+
+        p = dict()
+        # we need to calculate the p values from empirical distribution for
+        # mf_XY_omit_z
+        # mf_Xz
+        # mf_Yz
+        # mf_XY_z
+        # mf_XY_given_z
+        # mf_synergy
+        M1 = self.m1['set1'].shape[0]
+        M2 = self.m1['set2'].shape[0]
+        p['mf_Xz'] = p_value_estimate(mf_Xz.reshape([1, M1]),
+            self.empirical_distribution['mf_Xz'].reshape([1, M1, -1]),
+                                      'two.sided').squeeze()
+        p['mf_Yz'] = p_value_estimate(mf_Yz.reshape([1, M2]),
+            self.empirical_distribution['mf_Yz'].reshape([1, M2, -1]),
+                                      'two.sided').squeeze()
+        p['mf_XY_z'] = p_value_estimate(mf_XY_z, self.empirical_distribution[
+            'mf_XY_z'], 'two.sided')
+        p['mf_XY_given_z'] = p_value_estimate(mf_XY_given_z,
+           self.empirical_distribution['mf_XY_given_z'], 'two.sided')
+        p['synergy'] = p_value_estimate(synergy, self.empirical_distribution[
+            'synergy'], 'two.sided')
+        p['mf_XY_omit_z'] = p_value_estimate(mf_XY_omit_z,
+            self.empirical_distribution['mf_XY_omit_z'], 'two.sided')
+
         if adjust == 'Bonferroni':
-            test_times = len(np.triu(self.S))
-            p = p * test_times
+            n_test_X = M1
+            n_test_Y = M2
+            n_test_XY = len(np.triu(synergy))
+
+            p['mf_Xz'] = p['mf_Xz'] * n_test_X
+            p['mf_Yz'] = p['mf_Yz'] * n_test_Y
+            p['mf_XY_z'] = p['mf_XY_z'] * n_test_XY
+            p['mf_XY_given_z'] = p['mf_XY_given_z'] * n_test_XY
+            p['synergy'] = p['synergy'] * n_test_XY
+            p['mf_XY_omit_z'] = p['mf_XY_omit_z'] * n_test_XY
 
         return p
 
@@ -57,8 +97,8 @@ def p_value_estimate(observed, empirical_distribution, alternative='two.sided'):
     Estimate P value of observed synergy scores from the empirical distribution.
     :param observed: a M x M matrix of observed synergy scores. M is the
      number of phenotypes being analyzed
-    :param empirical_distribution: a M x M x n. Each vector of the M x M
-    matrix represent an empirical distribution with size n.
+    :param empirical_distribution: a M1 x M2 x n. Each n-vector represents
+    an empirical distribution.
     :param alternative: alternative hypothesis
     :return: a M x M matrix of which each element represent the p value for
     the observed synergy score of the phenotype pair.

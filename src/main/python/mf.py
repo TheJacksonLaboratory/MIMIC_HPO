@@ -244,14 +244,21 @@ class MutualInfoXYz:
                                                     self.control_N]))
         return Ib
 
-    # def mutual_info_XY(self):
-    #     """
-    #     Return the mutual information between x and y regardless of z. x,
-    #     y are random variables in X and Y
-    #     :return: a M1 x M2 matrix, each element corresponding to the mutual
-    #     information between x and y. Information on z is discarded.
-    #     """
-    #
+    def mutual_info_XY_omit_z(self):
+        """
+        Return the mutual information between x and y regardless of z. x,
+        y are random variables in X and Y
+        :return: a M1 x M2 matrix, each element corresponding to the mutual
+        information between x and y. Information on z is discarded.
+        """
+        # first transform the summary statistics of XY_z to XY (omit z)
+        summary_XY = SummaryXY(self.vars_labels['set1'],
+                               self.vars_labels['set2'])
+        summary_XY.N = self.control_N + self.case_N
+        summary_XY.m = np.sum(self.m2.reshape([self.M1, self.M2, 4, 2]), axis=-1)
+        mutualInfo_XY = MutualInfoXY(summary_XY)
+        mf_XY_omit_z = mutualInfo_XY.mf()
+        return mf_XY_omit_z
 
     def mutual_info_XY_z(self):
         """
@@ -617,6 +624,3 @@ def mf_XY_given_z(summary_XYz, summary_z):
                                     (prob_Xz[non_zero_valued_indices] * prob_Yz[non_zero_valued_indices]))
     mf_XY_condition_on_z = np.sum(temp, axis=-1)
     return mf_XY_condition_on_z
-
-
-
