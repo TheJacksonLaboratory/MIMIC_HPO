@@ -152,17 +152,17 @@ def load_distribution(dir, disease_prefix):
 
     empirical_distributions = dict()
     empirical_distributions['mf_XY_omit_z'] = \
-        np.stack([res['mf_XY_omit_z'] for res in simulations], axis=-1)
+        np.concatenate([res['mf_XY_omit_z'] for res in simulations], axis=-1)
     empirical_distributions['mf_Xz'] = \
-        np.stack([res['mf_Xz'] for res in simulations], axis=-1)
+        np.concatenate([res['mf_Xz'] for res in simulations], axis=-1)
     empirical_distributions['mf_Yz'] = \
-        np.stack([res['mf_Yz'] for res in simulations], axis=-1)
+        np.concatenate([res['mf_Yz'] for res in simulations], axis=-1)
     empirical_distributions['mf_XY_z'] = \
-        np.stack([res['mf_XY_z'] for res in simulations], axis=-1)
+        np.concatenate([res['mf_XY_z'] for res in simulations], axis=-1)
     empirical_distributions['mf_XY_given_z'] = \
-        np.stack([res['mf_XY_given_z'] for res in simulations], axis=-1)
+        np.concatenate([res['mf_XY_given_z'] for res in simulations], axis=-1)
     empirical_distributions['synergy'] = \
-        np.stack([res['synergy'] for res in simulations], axis=-1)
+        np.concatenate([res['synergy'] for res in simulations], axis=-1)
 
     return empirical_distributions
 
