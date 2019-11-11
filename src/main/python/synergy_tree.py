@@ -8,7 +8,7 @@ class SynergyTree:
     set of variables and precomputed mutual information between subsets of
     variables and an outcome and generate a synergy tree
     """
-    
+
     def __init__(self, var_ids, var_dict=None, precomputed_subset_mf=None):
         self.var_ids = var_ids
         self.var_dict = var_dict
