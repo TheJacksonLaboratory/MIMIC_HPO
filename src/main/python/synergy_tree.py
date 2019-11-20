@@ -12,18 +12,24 @@ class SynergyTree:
     set of variables and precomputed mutual information between subsets of
     variables and an outcome and generate a synergy tree
     """
-
-    def __init__(self, var_ids, var_dict=None, precomputed_subset_mf=None):
+    def __init__(self, var_ids, var_dict, mf_dict):
+        """
+        :param var_ids: a list of variable ids
+        :param var_dict: a dictionary that annotate variable ids
+        :param mf_dict: a dictionary from subsets of the variables to their
+        mutual information with an outcome. The key is a tuple and the value
+        is a number.
+        """
         self.var_ids = var_ids
         self.var_dict = var_dict
-        self.precomputed_mf = precomputed_subset_mf
+        self.mf_dict = mf_dict
         self.tree = None
 
     def _construct_tree(self):
         self.tree = treelib.Tree()
         root_id = tuple(sorted(self.var_ids))
         self.tree = populate_syn_tree(self.tree, None, root_id,
-                                      self.precomputed_mf)
+                                      self.mf_dict)
 
     def _all_keys_sorted(self):
         """
@@ -31,8 +37,8 @@ class SynergyTree:
         :return: true or false
         """
         sorted_keys = set([tuple(sorted(key)) for key in
-                       self.precomputed_mf.keys()])
-        return sorted_keys == set(self.precomputed_mf.keys())
+                           self.mf_dict.keys()])
+        return sorted_keys == set(self.mf_dict.keys())
 
     def _all_subset_mf_present(self):
         """
@@ -40,7 +46,7 @@ class SynergyTree:
         :return: true or false
         """
         for subset in subsets(self.var_ids, include_self=True):
-            if subset not in self.precomputed_mf.keys():
+            if subset not in self.mf_dict.keys():
                 Warning("subset not found: ", subset)
                 return False
         return True
@@ -54,7 +60,7 @@ class SynergyTree:
         sorted_key = tuple(sorted(key))
         if sorted_key != key:
             raise RuntimeError("key is not sorted")
-        self.precomputed_mf[key] = value
+        self.mf_dict[key] = value
 
     def synergy_tree(self):
         """
@@ -72,7 +78,11 @@ class SynergyTree:
 
 class DisjointSerie:
     """
-    Class to represent a disjoint serie as a list of sorted tuple.
+    Class to represent a disjoint serie as a list of sorted tuples. For
+    example, if the set is (1, 2, 3, 4), example disjoint series are:
+    -- (1,), (2, 3, 4)
+    -- (2,), (1, 3, 4)
+    -- (1, 2), (3, 4)
     """
     def __init__(self, series=None):
         if series is None:
@@ -90,10 +100,8 @@ class DisjointSerie:
         return not self.__eq__(other)
 
     def __hash__(self):
-        h = 0
-        for i in range(len(self.serie)):
-            h = hash(self.serie[i]) + 11 * h
-        return h
+        # list of not hashable. frozenset is.
+        return hash(frozenset(self.serie))
 
     def _sort(self):
         # first, sort each tuple
@@ -117,8 +125,8 @@ class DisjointSerie:
     def add(self, subset):
         """
         Add a subset represent with a tuple
-        :param subset:
-        :return:
+        :param subset: a subset to be added
+        :return: void
         """
         n = len(self.serie)
         if n == 0:
@@ -158,73 +166,11 @@ def populate_syn_tree(tree, parent, current, mf_dict):
     # max summed mutual information, because:
     # synergy = I - max(I' + I'')
     mf_joint = mf_dict[current]
-    mf_max_left_subset = set()
-    mf_max_right_subset = set()
 
     # Important: set it slight below zero to avoid finding no partition at all (
     # when all
     #  mf of subsets is zero)
     mf_max_subset = -0.0000001
-    # TODO: this is wrong:
-    # We should test all possible disjoint series,
-    # instead of just testing bi-partitions.
-    # It will take a long time to compute all complement series. One solution
-    #  is to precompute them, and load them from disk
-    partitions = complement_pairs(set(current))
-    for partition in partitions:
-        left, right = partition
-        mf_left = mf_dict[left]
-        mf_right = mf_dict[right]
-        if mf_left + mf_right > mf_max_subset:
-            mf_max_left_subset = set(left)
-            mf_max_right_subset = set(right)
-            mf_max_subset = mf_left + mf_right
-
-    synergy = mf_joint - mf_max_subset
-
-    # update synergy of current node
-    tree.create_node(current, current, parent=parent, data=synergy)
-
-    # recursively call the function on left subset and right subset
-    left_id = tuple(sorted(mf_max_left_subset))
-    tree = populate_syn_tree(tree, current, left_id, mf_dict)
-    right_id = tuple(sorted(mf_max_right_subset))
-    tree = populate_syn_tree(tree, current, right_id, mf_dict)
-
-    return tree
-
-
-def populate_syn_tree(tree, parent, current, mf_dict):
-    """
-    A recursive method to populate the synergy tree from the current node.
-    :param tree: synergy tree
-    :param parent: parent id (a tuple)
-    :param current: a tuple of variable names
-    :param mf_dict: a dictionary of precomputed mutual information, key is a
-    tuple of variables, value is the mutual information between the joint
-    distribution of those variables and the outcome
-    :return: synergy tree
-    """
-    # if tree has not been defined, or root not added
-    if tree is None:
-        raise ValueError("tree not initialized error")
-
-    # if there is only one element, this is a leaf and there is no synergy to
-    # compute
-    if len(current) == 1:
-        tree.create_node(current, current, parent=parent, data=None)
-        return tree
-
-    # if there are more than one element, find the partition that gives the
-    # max summed mutual information, because:
-    # synergy = I - max(I' + I'')
-    mf_joint = mf_dict[current]
-
-    # Important: set it slight below zero to avoid finding no partition at all (
-    # when all
-    #  mf of subsets is zero)
-    mf_max_subset = -0.0000001
-    # TODO: this is wrong:
     # We should test all possible disjoint series,
     # instead of just testing bi-partitions.
     # It will take a long time to compute all complement series. One solution
@@ -342,17 +288,6 @@ def subsets(parent_set, include_empty=False, include_self=False):
     return s
 
 
-def create_network(edge_ebunch):
-    """
-
-    :param edge_ebunch: in the format of (v, w, weight)
-    :return: a graph
-    """
-    graph = nx.Graph()
-    graph.add_edges_from(edge_ebunch)
-    return graph
-
-
 def trim_edges(conditional_mf_network, hpo_network, threshold=0.8):
     """
     Trim a conditional mutual information network based on the hierarchy of
@@ -433,6 +368,10 @@ def precompute_disjoint_series(n, include_self=False, save_path=None):
         except:
             Warning("cannot save result to {}".format(save_path))
 
+
+###############################################################################
+# the follow section can be deleted
+###############################################################################
 
 def bit_array(decimal, n):
     bit = format(decimal, '0{}b'.format(n))
