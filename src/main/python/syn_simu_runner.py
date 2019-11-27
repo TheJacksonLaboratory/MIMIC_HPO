@@ -147,8 +147,11 @@ def load_distribution(dir, disease_prefix):
                             '_distribution.obj')
         if os.path.exists(path):
             with open(path, 'rb') as f:
-                simulation = pickle.load(f)
-                simulations.append(simulation)
+                try:
+                    simulation = pickle.load(f)
+                    simulations.append(simulation)
+                except:
+                    pass
 
     empirical_distributions = dict()
     empirical_distributions['mf_XY_omit_z'] = \

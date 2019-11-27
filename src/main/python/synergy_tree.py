@@ -4,6 +4,8 @@ import networkx as nx
 import numpy as np
 import pickle
 import copy
+import sys
+import logging
 
 
 class SynergyTree:
@@ -141,7 +143,8 @@ class DisjointSerie:
             self.serie.insert(i, subset)
 
 
-def populate_syn_tree(tree, parent, current, mf_dict):
+def populate_syn_tree(tree, parent, current, mf_dict,
+                      disjoint_series_dict=None):
     """
     A recursive method to populate the synergy tree from the current node.
     :param tree: synergy tree
@@ -175,15 +178,33 @@ def populate_syn_tree(tree, parent, current, mf_dict):
     # instead of just testing bi-partitions.
     # It will take a long time to compute all complement series. One solution
     #  is to precompute them, and load them from disk
-    partitions = disjoint_series(set(current))
-    best_partition = partitions.pop()
-    for partition in partitions:
-        mf_subset = []
-        for i in range(len(partition.serie)):
-            mf_subset.append(mf_dict[partition.serie[i]])
-        if sum(mf_subset) > mf_max_subset:
-            mf_max_subset = sum(mf_subset)
-            best_partition = partition
+    if disjoint_series_dict is None or len(current) not in \
+            disjoint_series_dict.keys():
+        partitions = disjoint_series(set(current))
+        best_partition = partitions.pop()
+        for partition in partitions:
+            mf_subset = []
+            for i in range(len(partition.serie)):
+                mf_subset.append(mf_dict[partition.serie[i]])
+            if sum(mf_subset) > mf_max_subset:
+                mf_max_subset = sum(mf_subset)
+                best_partition = partition
+    else:
+        # disjoint_series_dict is using integers to represent each element
+        # for example, (0,), (1, 2, 3)
+        # need to convert them into variable ids, such as
+        # ('V1',), ('V2', 'V3', 'V4')
+        current_sorted = np.array(sorted(current))
+        partitions = disjoint_series_dict[current_sorted.size]
+        best_partition = partitions.pop()
+        for partition in partitions:
+            mf_subset = []
+            for i in range(len(partition.serie)):
+                key = tuple(current_sorted[list(partition.serie[i])])
+                mf_subset.append(mf_dict[key])
+            if sum(mf_subset) > mf_max_subset:
+                mf_max_subset = sum(mf_subset)
+                best_partition = partition
 
     synergy = mf_joint - mf_max_subset
 
@@ -330,26 +351,30 @@ def trim_edges(conditional_mf_network, hpo_network, threshold=0.8):
         #   if neighbor is descendant of the other node and the mf is
         # still above a threshold (percentage), remove the current edge;
         # otherwise, remove the descendant
-
-        for neighbor in trimmed.adj[v].keys():
-            mf_edge = trimmed[v][neighbor]['mf']
-            # check whether the edge is waiting to be analyzed
-            if (v, neighbor, mf_edge) in ordered_edges:
-                if neighbor in nx.ancestors(hpo_network, w):
-                    remove_list.add(neighbor)
-                if w in nx.ancestors(hpo_network, neighbor) and \
-                        mf_edge/mf > threshold:
-                    remove_list.add(neighbor)
-
-        for neighbor in trimmed.adj[w].keys():
-            mf_edge = trimmed[w][neighbor]['mf']
-            # check whether the edge is waiting to be analyzed
-            if (w, neighbor, mf_edge) in ordered_edges:
-                if neighbor in nx.ancestors(hpo_network, v):
-                    remove_list.add(neighbor)
-                if v in nx.ancestors(hpo_network, neighbor) and \
-                        mf_edge/mf > threshold:
-                    remove_list.add(v)
+        if v not in remove_list:
+            for neighbor in trimmed.adj[v].keys():
+                mf_edge = trimmed[v][neighbor]['mf']
+                # check whether the edge is waiting to be analyzed
+                if (v, neighbor, mf_edge) in ordered_edges:
+                    # note: to find ancestors of an ontology term,
+                    # use networkx descendants
+                    if neighbor in nx.descendants(hpo_network, w):
+                        remove_list.add(neighbor)
+                        logging.info('worse ancestor detected: {} for {}, '
+                                     'remove {}'.format(neighbor, w, neighbor))
+                    if w in nx.descendants(hpo_network, neighbor) and \
+                            mf_edge/mf > threshold:
+                        remove_list.add(w)
+        if w not in remove_list:
+            for neighbor in trimmed.adj[w].keys():
+                mf_edge = trimmed[w][neighbor]['mf']
+                # check whether the edge is waiting to be analyzed
+                if (w, neighbor, mf_edge) in ordered_edges:
+                    if neighbor in nx.descendants(hpo_network, v):
+                        remove_list.add(neighbor)
+                    if v in nx.descendants(hpo_network, neighbor) and \
+                            mf_edge/mf > threshold:
+                        remove_list.add(v)
 
     for node in remove_list:
         trimmed.remove_node(node)
@@ -475,3 +500,7 @@ def disjoint_series2(parent_set, include_self=False):
     if not include_self:
         done.pop(0)
     return done
+
+
+if __name__=='__main__':
+    print(sys.argv)

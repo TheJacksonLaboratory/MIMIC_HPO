@@ -3,6 +3,7 @@ import src.main.python.synergy_tree as synergy_tree
 import treelib
 import networkx as nx
 import time
+import pickle
 
 
 class TestSynergyTree(unittest.TestCase):
@@ -150,7 +151,7 @@ class TestSynergyTree(unittest.TestCase):
         mocked_hpo = nx.MultiDiGraph()
         mocked_hpo_nodes = ['HP:' + str(i + 1) for i in range(5)]
         mocked_hpo.add_nodes_from(mocked_hpo_nodes)
-        mocked_hpo_edges = [('HP:5', 'HP:2'), ('HP:3', 'HP:2')]
+        mocked_hpo_edges = [('HP:2', 'HP:5'), ('HP:2', 'HP:3')]
         mocked_hpo.add_edges_from(mocked_hpo_edges)
         # print(mocked_hpo.edges)
 
@@ -175,7 +176,12 @@ class TestSynergyTree(unittest.TestCase):
         # print(conditional_mf_network.nodes)
         # print(trimed_network.nodes)
         self.assertEqual(list(trimed_network.nodes),
-                         ['HP:1', 'HP:3', 'HP:4'])
+                         ['HP:1', 'HP:2', 'HP:4'])
+
+    # def test_precompute_disjoint_series(self):
+    #     n = 3
+    #     synergy_tree.precompute_disjoint_series(n, False,
+    #            'disjoint_series_{}.obj'.format(str(n)))
 
 
 if __name__ == '__main__':
