@@ -40,7 +40,7 @@ public class I2b2Lab2HpoService {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
-	private final String maxRowIdQuery = "select max(row_id) from labevents";
+	private final String countQuery = "select count(*) from labevents";
 	private final String allLabsQuery = "select * from labevents";
 
 	public void labToHpo(LabEvents2HpoFactory labConvertFactory) {
@@ -56,9 +56,9 @@ public class I2b2Lab2HpoService {
 			//TODO: warn user
 			return;
 		}
-		Integer maxRowId = jdbcTemplate.queryForObject(maxRowIdQuery, null, Integer.class);
+		Integer numRows = jdbcTemplate.queryForObject(countQuery, null, Integer.class);
 		jdbcTemplate.query(allLabsQuery,
-				new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory, maxRowId));
+				new LabEventCallbackHandler(jdbcTemplate, transactionManager, labConvertFactory, numRows));
 	}
 
 	public void initTable() {
@@ -78,20 +78,23 @@ public class I2b2Lab2HpoService {
 		JdbcTemplate jdbcTemplate;
 		TransactionTemplate transactionTemplate;
 		LabEvents2HpoFactory labConvertFactory;
-		Integer maxRowId;
+		Integer currentRow;
+		Integer numRows;
 		List<LabHpo> labHpos = new ArrayList<>(batchSize);
 
 		LabEventCallbackHandler(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager,
-				LabEvents2HpoFactory labConvertFactory, Integer maxRowId) {
+				LabEvents2HpoFactory labConvertFactory, Integer numRows) {
 			this.jdbcTemplate = jdbcTemplate;
 			this.transactionTemplate = new TransactionTemplate(transactionManager);
 			this.labConvertFactory = labConvertFactory;
-			this.maxRowId = maxRowId;
+			this.numRows = numRows;
+			this.currentRow = 0;
 		}
 
 		@Override
 		public void processRow(ResultSet rs) throws SQLException {
 
+			currentRow++;
 			LabEvent labEvent = LabEventFactory.parse(rs);
 			int rowId = labEvent.getRow_id();
 			LabHpo labHpo = null;
@@ -129,7 +132,7 @@ public class I2b2Lab2HpoService {
 
 			labHpos.add(labHpo);
 			
-			if (labHpos.size() == batchSize || maxRowId.equals(rowId)) {
+			if (labHpos.size() == batchSize || numRows.equals(currentRow)) {
 				insertBatch(labHpos);
 				labHpos.clear();
 			}
