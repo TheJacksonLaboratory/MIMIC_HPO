@@ -1,6 +1,9 @@
 import obonet
 
+"""
+TODO: This module is deprecated. Use the new obonet instead
 
+"""
 class HPO:
 
     def __init__(self, url):
