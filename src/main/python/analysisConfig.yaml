@@ -4,6 +4,7 @@ database:
   password: mimic
   database: mimiciiiv13
 
+# all output from the analysis will be saved under {base_dir}/data
 base_dir: /Users/zhangx/git/MIMIC_HPO
 
 hp.obo.path: /Users/zhangx/git/human-phenotype-ontology/hp.obo
@@ -36,6 +37,17 @@ analysis-prod:
     labHpo_threshold_min: 1000
     labHpo_threshold_max: 100000
 
+  regardless_of_diseases:
+    textHpo_occurrance_min: 1
+    labHpo_occurrance_min: 3
+
+    textHpo_threshold_min: 500
+    textHpo_threshold_max: 100000
+
+    labHpo_threshold_min: 1000
+    labHpo_threshold_max: 100000
+
+
 analysis-test:
   regarding_diagnosis:
     # if true, diagnosis is considered present only if it is listed as primary
@@ -61,6 +73,16 @@ analysis-test:
     # labHpo occurred too rarely or too frequently are ignored from analysis
     labHpo_threshold_min: 7
     labHpo_threshold_max: 100
+
+  regardless_of_diseases:
+    textHpo_occurrance_min: 1
+    labHpo_occurrance_min: 3
+
+    textHpo_threshold_min: 45
+    textHpo_threshold_max: 65
+
+    labHpo_threshold_min: 75
+    labHpo_threshold_max: 85
 
 
 
