@@ -16,16 +16,17 @@ import synergy_tree
 from ontology import Ontology
 import pickle
 from tqdm import tqdm, tqdm_notebook
+import yaml
 
-# load configuration file
-config = ConfigParser()
-config.read('analysisConfig.properties')
+# load yaml configuration file
+with open('analysisConfig.yaml', 'r') as yaml_file:
+    config = yaml.load(yaml_file)
 
 # set up MySql connection
-host = config['Database']['host']
-user = config['Database']['user']
-password = config['Database']['password']
-database = config['Database']['database']
+host = config['database']['host']
+user = config['database']['user']
+password = config['database']['password']
+database = config['database']['database']
 
 mydb = mysql.connector.connect(host=host,
                                user=user,
@@ -147,11 +148,13 @@ def indexTextHpoProfile():
     Create indeces to speed up query
     """
     # _idx01 is unnecessary if _idx3 exists
-    # cursor.execute('CREATE INDEX JAX_textHpoProfile_idx01 ON JAX_textHpoProfile (SUBJECT_ID, HADM_ID)')
+    # cursor.execute('CREATE INDEX JAX_textHpoProfile_idx01 ON
+    # JAX_textHpoProfile (SUBJECT_ID, HADM_ID)')
     cursor.execute(
         'CREATE INDEX JAX_textHpoProfile_idx02 ON JAX_textHpoProfile (MAP_TO);')
     cursor.execute(
-        'CREATE INDEX JAX_textHpoProfile_idx03 ON JAX_textHpoProfile (SUBJECT_ID, HADM_ID, MAP_TO)')
+        'CREATE INDEX JAX_textHpoProfile_idx03 ON JAX_textHpoProfile ('
+        'SUBJECT_ID, HADM_ID, MAP_TO)')
     cursor.execute(
         'CREATE INDEX JAX_textHpoProfile_idx04 ON JAX_textHpoProfile (OCCURRANCE)')
 
@@ -177,7 +180,9 @@ def labHpoProfile(include_inferred=True):
                 UNION ALL
 
                 SELECT 
-                    LABEVENTS.SUBJECT_ID, LABEVENTS.HADM_ID, INFERRED_LABHPO.INFERRED_TO AS MAP_TO 
+                    LABEVENTS.SUBJECT_ID, 
+                    LABEVENTS.HADM_ID, 
+                    INFERRED_LABHPO.INFERRED_TO AS MAP_TO 
                 FROM 
                     INFERRED_LABHPO 
                 JOIN 
@@ -205,18 +210,21 @@ def labHpoProfile(include_inferred=True):
 
 def indexLabHpoProfile():
     # _idx01 is not necessary if _idx3 exists
-    # cursor.execute('CREATE INDEX JAX_labHpoProfile_idx01 ON JAX_labHpoProfile (SUBJECT_ID, HADM_ID)')
+    # cursor.execute('CREATE INDEX JAX_labHpoProfile_idx01 ON
+    # JAX_labHpoProfile (SUBJECT_ID, HADM_ID)')
     cursor.execute(
         'CREATE INDEX JAX_labHpoProfile_idx02 ON JAX_labHpoProfile (MAP_TO);')
     cursor.execute(
-        'CREATE INDEX JAX_labHpoProfile_idx03 ON JAX_labHpoProfile (SUBJECT_ID, HADM_ID, MAP_TO)')
+        'CREATE INDEX JAX_labHpoProfile_idx03 ON JAX_labHpoProfile ('
+        'SUBJECT_ID, HADM_ID, MAP_TO)')
     cursor.execute(
         'CREATE INDEX JAX_labHpoProfile_idx04 ON JAX_labHpoProfile (OCCURRANCE)')
 
 
 def rankICD():
     """
-    Rank frequently seen ICD-9 codes (first three or four digits) among encounters of interest.
+    Rank frequently seen ICD-9 codes (first three or four digits) among
+    encounters of interest.
     """
     cursor.execute('DROP TEMPORARY TABLE IF EXISTS JAX_diagFrequencyRank')
     cursor.execute("""
@@ -266,7 +274,8 @@ def rankHpoFromText(diagnosis, hpo_min_occurrence_per_encounter):
                 WHERE 
                     ICD9_CODE LIKE '{}%') AS d
             ON 
-                JAX_textHpoProfile.SUBJECT_ID = d.SUBJECT_ID AND JAX_textHpoProfile.HADM_ID = d.HADM_ID
+                JAX_textHpoProfile.SUBJECT_ID = d.SUBJECT_ID AND 
+                JAX_textHpoProfile.HADM_ID = d.HADM_ID
             WHERE 
                 OCCURRANCE >= {})
         SELECT 
@@ -548,23 +557,23 @@ def summarize_diagnosis_textHpo_labHpo(primary_diagnosis_only,
         # create a table j1 (joint 1)
         createDiagnosisTable(diagnosis, primary_diagnosis_only)
         indexDiagnosisTable()
-        # for every diagnosis, find phenotypes of interest to look at from radiology reports
-        # for every diagnosis, find phenotypes of interest to look at from laboratory tests
+        # for every diagnosis, find phenotypes of interest to look at from
+        # radiology reports and laboratory tests
         rankHpoFromText(diagnosis, textHpo_occurrance_min)
         rankHpoFromLab(diagnosis, labHpo_occurrance_min)
         logger.info("..............diagnosis values found")
 
         textHpoOfInterest = pd.read_sql_query(
-            "SELECT * FROM JAX_textHpoFrequencyRank WHERE N BETWEEN {} AND {}".format(
-                textHpo_threshold_min, textHpo_threshold_max),
+            "SELECT * FROM JAX_textHpoFrequencyRank WHERE N BETWEEN {} AND {}"
+                .format(textHpo_threshold_min, textHpo_threshold_max),
             mydb).MAP_TO.values
         labHpoOfInterest = pd.read_sql_query(
-            "SELECT * FROM JAX_labHpoFrequencyRank WHERE N BETWEEN {} AND {}".format(
-                labHpo_threshold_min, labHpo_threshold_max), mydb).MAP_TO.values
-        logger.info("TextHpo of interest established, size: {}".format(
-            len(textHpoOfInterest)))
-        logger.info("LabHpo of interest established, size: {}".format(
-            len(labHpoOfInterest)))
+            "SELECT * FROM JAX_labHpoFrequencyRank WHERE N BETWEEN {} AND {}"
+                .format(labHpo_threshold_min, labHpo_threshold_max), mydb).MAP_TO.values
+        logger.info("TextHpo of interest established, size: {}"
+                    .format(len(textHpoOfInterest)))
+        logger.info("LabHpo of interest established, size: {}"
+                    .format(len(labHpoOfInterest)))
 
         ## find the start and end ROW_ID for patient*encounter
         ADM_ID_START, ADM_ID_END = pd.read_sql_query(
@@ -588,14 +597,15 @@ def summarize_diagnosis_textHpo_labHpo(primary_diagnosis_only,
             else:
                 end_index = batch_N
 
-            diagnosisFlat, textHpoFlat, labHpoFlat = batch_query(start_index,
-                                                                 end_index,
-                                                                 textHpo_occurrance_min,
-                                                                 labHpo_occurrance_min,
-                                                                 textHpo_threshold_min,
-                                                                 textHpo_threshold_max,
-                                                                 labHpo_threshold_min,
-                                                                 labHpo_threshold_max)
+            diagnosisFlat, textHpoFlat, labHpoFlat = \
+                batch_query(start_index,
+                            end_index,
+                            textHpo_occurrance_min,
+                            labHpo_occurrance_min,
+                            textHpo_threshold_min,
+                            textHpo_threshold_max,
+                            labHpo_threshold_min,
+                            labHpo_threshold_max)
 
             batch_size_actual = len(diagnosisFlat)
             textHpoOfInterest_size = len(textHpoOfInterest)
@@ -647,83 +657,67 @@ def mf_regardless_of_diseases():
     pass
 
 
-def mf_regarding_diseases(mode):
+def mf_regarding_diseases(test_mode):
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    primary_diagnosis_only = config['Analysis'][mode].getboolean('primary_diagnosis_only')
-
-    if mode == 'test':
-        # 1. build the temp tables for Lab converted HPO, Text convert HPO
-        # Read the comments within the method!
-        initTables(debug=True)
-
-        # 2. iterate throw the dataset
-        primary_diagnosis_only = True
-        diagnosis_threshold_min = 5
-        textHpo_occurrance_min, labHpo_occurrance_min = 1, 3
-        textHpo_threshold_min, textHpo_threshold_max = 7, 100
-        labHpo_threshold_min, labHpo_threshold_max = 7, 100
-        disease_of_interest = ['428', '584', '038', '493', '*']
-
-        summaries_diag_textHpo_labHpo, \
-        summaries_diag_textHpo_textHpo, \
-        summaries_diag_labHpo_labHpo = summarize_diagnosis_textHpo_labHpo(
-            primary_diagnosis_only, textHpo_occurrance_min,
-            labHpo_occurrance_min,
-            diagnosis_threshold_min, textHpo_threshold_min,
-            textHpo_threshold_max,
-            labHpo_threshold_min, labHpo_threshold_max, disease_of_interest,
-            logger)
-        return 0
-
-    # how to run this
-    # Again, it take either too long or too much memory space to run
-    logger = logging.getLogger()
-    logger.setLevel(logging.WARN)
+    if test_mode:
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARN)
 
     # 1. build the temp tables for Lab converted HPO, Text convert HPO
     # Read the comments within the method!
-    initTables(debug=False)
+    initTables(debug=test_mode)
 
     # 2. iterate throw the dataset
-    primary_diagnosis_only = True
-    diagnosis_threshold_min = 3000
-    textHpo_threshold_min, textHpo_threshold_max = 500, 100000
-    labHpo_threshold_min, labHpo_threshold_max = 1000, 100000
-    textHpo_occurrance_min, labHpo_occurrance_min = 1, 3
-    disease_of_interest = ['428', '584', '038', '493']
+    ## populate analysis parameters
+    if test_mode:
+        analysis_parameters = config['analysis-test']['regarding_diagnosis']
+    else:
+        analysis_parameters = config['analysis-prod']['regarding_diagnosis']
+    primary_diagnosis_only = analysis_parameters['primary_diagnosis_only']
+    diagnosis_threshold_min = analysis_parameters['diagnosis_threshold_min']
+    textHpo_occurrance_min = analysis_parameters['textHpo_occurrance_min']
+    labHpo_occurrance_min = analysis_parameters['labHpo_occurrance_min']
+    textHpo_threshold_min = analysis_parameters['textHpo_threshold_min']
+    textHpo_threshold_max = analysis_parameters['textHpo_threshold_max']
+    labHpo_threshold_min = analysis_parameters['labHpo_threshold_min']
+    labHpo_threshold_max = analysis_parameters['labHpo_threshold_max']
+    disease_of_interest = analysis_parameters['disease_of_interest']
 
     summaries_diag_textHpo_labHpo, \
     summaries_diag_textHpo_textHpo, \
     summaries_diag_labHpo_labHpo = summarize_diagnosis_textHpo_labHpo(
         primary_diagnosis_only, textHpo_occurrance_min,
-        labHpo_occurrance_min, diagnosis_threshold_min,
-        textHpo_threshold_min, textHpo_threshold_max, labHpo_threshold_min,
-        labHpo_threshold_max, disease_of_interest, logger)
+        labHpo_occurrance_min,
+        diagnosis_threshold_min, textHpo_threshold_min,
+        textHpo_threshold_max,
+        labHpo_threshold_min, labHpo_threshold_max, disease_of_interest,
+        logger)
 
-    if primary_diagnosis_only:
-        fName_diag_textHpo_labHpo = '../../../data/mf_regarding_diseases/primary_only/summaries_diagnosis_textHpo_labHpo.obj'
-        fName_diag_textHpo_textHpo = '../../../data/mf_regarding_diseases/primary_only/summaries_diagnosis_textHpo_textHpo.obj'
-        fName_diag_labHpo_labHpo = '../../../data/mf_regarding_diseases/primary_only/summaries_diagnosis_labHpo_labHpo.obj'
-    else:
-        fName_diag_textHpo_labHpo = '../../../data/mf_regarding_diseases/primary_and_secondary/summaries_diagnosis_textHpo_labHpo.obj'
-        fName_diag_textHpo_textHpo = '../../../data/mf_regarding_diseases/primary_and_secondary/summaries_diagnosis_textHpo_textHpo.obj'
-        fName_diag_labHpo_labHpo = '../../../data/mf_regarding_diseases/primary_and_secondary/summaries_diagnosis_labHpo_labHpo.obj'
+    # save to file
+    base_dir = config['base_dir']
+    diagnosis_dir = 'primary_only' if primary_diagnosis_only else \
+        'primary_and_secondary'
+    save_to_dir = os.path.join(base_dir, 'data', 'mf_regarding_diseases',
+                               diagnosis_dir)
+    if test_mode:
+        save_to_dir = os.path.join(save_to_dir, 'test')
+    if not os.path.exists(save_to_dir):
+        os.mkdir(save_to_dir)
 
-    with open(fName_diag_textHpo_labHpo, 'wb') as f:
+    fName_diag_textHpo_labHpo = 'summaries_diagnosis_textHpo_labHpo.obj'
+    fName_diag_textHpo_textHpo = 'summaries_diagnosis_textHpo_textHpo.obj'
+    fName_diag_labHpo_labHpo = 'summaries_diagnosis_labHpo_labHpo.obj'
+
+    with open(os.path.join(save_to_dir, fName_diag_textHpo_labHpo),
+              'wb') as f:
         pickle.dump(summaries_diag_textHpo_labHpo, f)
-    with open(fName_diag_textHpo_textHpo, 'wb') as f:
+    with open(os.path.join(save_to_dir, fName_diag_textHpo_textHpo), 'wb') as f:
         pickle.dump(summaries_diag_textHpo_textHpo, f)
-    with open(fName_diag_labHpo_labHpo, 'wb') as f:
+    with open(os.path.join(save_to_dir, fName_diag_labHpo_labHpo), 'wb') as f:
         pickle.dump(summaries_diag_labHpo_labHpo, f)
 
 
-def run():
-    print(pd.read_sql_query("SELECT * FROM LABEVENTS LIMIT 5;", mydb))
-
-
 if __name__ == '__main__':
-    # mf_regarding_diseases('test')
-    print (config['Analysis']['disease_of_interest'])
-    print(config['Analysis']['regarding_diagnosis.primary_diagnosis_only'])
+    mf_regarding_diseases(test_mode=True)
+
