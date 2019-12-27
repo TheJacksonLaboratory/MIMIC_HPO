@@ -1379,6 +1379,180 @@ def pipeline_simulate_to_get_p_values(primary_only, diag_code, mock=True):
                 pickle.dump(p, p_value_file)
 
 
+################################################################################
+# synergy network
+# Algorithm:
+# 1. create a temp table Jax_multivariant_synergy_table (SUBJECT_ID, HADM_ID,
+# diag_value)
+# 2. for each phenotype, finding whether they are present, add a column
+# 3. using the combined table, calculate the mutual information of all subsets
+# 4. construct a synergy tree
+################################################################################
+def add_diag_columns(diagnosis, primary_diagnosis_only):
+    createDiagnosisTable(diagnosis, primary_diagnosis_only)
+    # copy into a new table Jax_multivariant_synergy_table(SUBJECT_ID, HADM_ID, DIAGNOSIS)
+    cursor.execute("""
+        CREATE TEMPORARY TABLE IF NOT EXISTS Jax_multivariant_synergy_table AS (
+            SELECT * 
+            FROM JAX_mf_diag
+        )""")
+    cursor.execute(
+        'CREATE INDEX Jax_multivariant_synergy_table_idx01 ON JAX_mf_diag (SUBJECT_ID, HADM_ID)')
+
+
+def add_phenotype_columns(labHpos, textHpos, labHpo_threshold_min,
+                          textHpo_threshold_min):
+    # save the variable transformation for later use
+    var_dict = {}
+    i = 0
+    for labHpo in labHpos:
+        i = i + 1
+        colName = 'V' + str(i)
+        var_dict[colName] = ('LabHpo', labHpo)
+        cursor.execute("""
+            ALTER TABLE Jax_multivariant_synergy_table ADD COLUMN {} INT DEFAULT 0""".format(
+            colName))
+        cursor.execute("""
+            UPDATE Jax_multivariant_synergy_table 
+            LEFT JOIN JAX_labHpoProfile 
+            ON Jax_multivariant_synergy_table.SUBJECT_ID = JAX_labHpoProfile.SUBJECT_ID AND 
+            Jax_multivariant_synergy_table.HADM_ID = JAX_labHpoProfile.HADM_ID
+            SET {} = IF(JAX_labHpoProfile.OCCURRANCE > {}, 1, 0)
+            WHERE JAX_labHpoProfile.MAP_TO = '{}'
+        """.format(colName, labHpo_threshold_min, labHpo))
+
+    for textHpo in textHpos:
+        i = i + 1
+        colName = 'V' + str(i)
+        var_dict[colName] = ('TextHpo', textHpo)
+        cursor.execute("""
+            ALTER TABLE Jax_multivariant_synergy_table ADD COLUMN {} INT DEFAULT 0""".format(
+            colName))
+        cursor.execute("""
+            UPDATE Jax_multivariant_synergy_table 
+            LEFT JOIN JAX_textHpoProfile 
+            ON Jax_multivariant_synergy_table.SUBJECT_ID = JAX_textHpoProfile.SUBJECT_ID AND 
+            Jax_multivariant_synergy_table.HADM_ID = JAX_textHpoProfile.HADM_ID
+            SET {} = IF(JAX_textHpoProfile.OCCURRANCE > {}, 1, 0)
+            WHERE JAX_textHpoProfile.MAP_TO = '{}'
+        """.format(colName, textHpo_threshold_min, textHpo))
+    return var_dict
+
+
+def precompute_mf(variables):
+    """
+    Compute the mutual information between the joint distribution of all the variables and the medical outcome
+    """
+    summary_counts = pd.read_sql_query("""
+        WITH summary AS (
+        SELECT {}, DIAGNOSIS, COUNT(*) AS N
+        FROM Jax_multivariant_synergy_table
+        GROUP BY {}, DIAGNOSIS)
+        SELECT *, SUM(N) OVER (PARTITION BY {}) AS V, SUM(N) OVER (PARTITION BY DIAGNOSIS) AS D
+        FROM summary
+    """.format(','.join(variables), ','.join(variables), ','.join(variables)),
+                                       mydb)
+    total = np.sum(summary_counts.N)
+    p = summary_counts.N / total
+    p_V = summary_counts.V / total
+    p_D = summary_counts.D / total
+    mf = np.sum(p * np.log2(p / (p_V * p_D)))
+    return mf, summary_counts
+
+
+def precompute_mf_dict(var_ids):
+    var_subsets = synergy_tree.subsets(var_ids, include_self=True)
+    mf_dict = {}
+    summary_dict = {}
+    pbar = tqdm_notebook(total=len(var_subsets))
+    for var_subset in var_subsets:
+        mf, summary_count = precompute_mf(var_subset)
+        mf_dict[var_subset] = mf
+        summary_dict[var_subset] = summary_count
+        pbar.update(1)
+    pbar.close()
+
+    return mf_dict, summary_dict
+
+
+################################################################################
+# Select phenotypes before first diagnosis of a disease
+# This is for machine learning tasks: using phenotypes before first diagnosis
+#  to predict whether the diagnosis will happen
+################################################################################
+def first_diag_time(diagnosis):
+    cursor.execute('DROP TEMPORARY TABLE IF EXISTS JAX_first_diag_time')
+    cursor.execute('''
+        CREATE TEMPORARY TABLE JAX_first_diag_time
+        WITH diag_time AS (
+            SELECT L.*, R.ADMITTIME 
+            FROM JAX_mf_diag AS L
+            JOIN ADMISSIONS AS R
+            ON 
+                L.SUBJECT_ID = R.SUBJECT_ID AND L.HADM_ID = R.HADM_ID
+        ), 
+        overallDiagnosis AS (
+            SELECT *, IF(SUM(DIAGNOSIS) OVER (PARTITION BY SUBJECT_ID) > 0, 1, 0) AS everDiagnosed
+            FROM diag_time
+        )
+
+        SELECT 
+            *, MIN(IF(everDiagnosed = 1, ADMITTIME, NULL) ) OVER (PARTITION BY SUBJECT_ID) AS first_diag, 
+            MAX(IF(everDiagnosed = 0, ADMITTIME, NULL)) OVER (PARTITION BY SUBJECT_ID) AS last_visit_if_not_diagnosed
+        FROM 
+            overallDiagnosis  
+    '''.format(diagnosis))
+
+
+def encountersAfterDiagnosis():
+    cursor.execute('DROP TEMPORARY TABLE IF EXISTS JAX_encounters_after_diagnosis')
+    cursor.execute('''
+        CREATE TEMPORARY TABLE JAX_encounters_after_diagnosis
+            SELECT *, 1 AS toIgnore
+            FROM JAX_first_diag_time
+            WHERE DIAGNOSIS = 1 AND ADMITTIME > first_diag
+    ''')
+    cursor.execute('CREATE INDEX JAX_encounters_after_diagnosis_idx01 ON JAX_encounters_after_diagnosis (SUBJECT_ID, HADM_ID)')
+
+
+def lab_phenotype_before_diagnosis():
+    cursor.execute('DROP TEMPORARY TABLE IF EXISTS JAX_phen_lab_before_diag')
+    cursor.execute('''
+        CREATE TEMPORARY TABLE JAX_phen_lab_before_diag
+        WITH temp as (
+            SELECT L.*, W.toIgnore
+            FROM JAX_LABHPOPROFILE AS L
+            JOIN JAX_mf_diag AS R ON L.SUBJECT_ID = R.SUBJECT_ID AND L.HADM_ID = R.HADM_ID
+            LEFT JOIN JAX_encounters_after_diagnosis W on  L.SUBJECT_ID = W.SUBJECT_ID AND L.HADM_ID = W.HADM_ID
+            WHERE L.OCCURRANCE >= 1
+        )
+        SELECT SUBJECT_ID, MAP_TO, COUNT(*) as N
+        FROM temp
+        WHERE toIgnore IS NULL
+        GROUP BY SUBJECT_ID, MAP_TO
+    ''')
+    cursor.execute(
+        'CREATE INDEX JAX_phen_lab_before_diag_idx01 ON JAX_phen_lab_before_diag (N)')
+
+
+def text_phenotype_before_diagnosis():
+    cursor.execute('DROP TEMPORARY TABLE IF EXISTS JAX_phen_text_before_diag')
+    cursor.execute('''
+        CREATE TEMPORARY TABLE JAX_phen_text_before_diag
+        WITH temp as (
+            SELECT L.*, W.toIgnore
+            FROM JAX_TEXTHPOPROFILE AS L
+            JOIN JAX_mf_diag AS R ON L.SUBJECT_ID = R.SUBJECT_ID AND L.HADM_ID = R.HADM_ID
+            LEFT JOIN JAX_encounters_after_diagnosis W on  L.SUBJECT_ID = W.SUBJECT_ID AND L.HADM_ID = W.HADM_ID
+        )
+        SELECT SUBJECT_ID, MAP_TO, COUNT(*) as N
+        FROM temp
+        WHERE toIgnore IS NULL
+        GROUP BY SUBJECT_ID, MAP_TO
+    ''')
+    cursor.execute(
+        'CREATE INDEX JAX_phen_text_before_diag_idx01 ON JAX_phen_text_before_diag (N)')
+
 
 ################################################################################
 # analysis pipeline. change according to desired behavior                      #
@@ -1413,30 +1587,37 @@ def pipeline_regardless_of_disease():
     print("done interpreting summary statistics")
 
 
-def pipeline_regarding_diseases():
+def pipeline_regarding_diseases(recompute_summary_statistics):
     # Step 1: calculating summary statistics for diseases of interest
-    # specified in the configuration file
-    # Comment out this section if the goal is to process summary statistics
-    # to generate nicely rendered csv and html files
-    print("start calculating summary statistics...")
-    testmode = False  # set to false to run in production mode
-    pipeline_calculate_summary_statistics_for_mf_regarding_diseases(
-        test_mode=testmode)
-    print("done calculating summary statistics")
-    if testmode:
-        print("Step 2 and 3 not run for test mode. Pipeline completed. "
-              "Exiting.")
-        return 0
+    # specified in the configuration file. ~12 min per disease. Try to run
+    # many diseases in one run.
+    # Set recompute_summary_statistics to False if the goal is to process
+    # summary statistics to generate nicely rendered csv and html files
+    if recompute_summary_statistics:
+        print("start calculating summary statistics...")
+        testmode = False  # if true, a minor fraction of encounters are used
+        pipeline_calculate_summary_statistics_for_mf_regarding_diseases(
+            test_mode=testmode)
+        print("done calculating summary statistics")
+        if testmode: # do not run following steps in testing mode
+            print("Step 2 and 3 not run for test mode. Pipeline completed. "
+                  "Exiting.")
+            return 0
 
-    # Step 2: following the instructions printed by the function
-    # below to simulate p values on Helix and download to local machine
+    # Step 2: follow the instructions printed by this function below to
+    # simulate p values on Helix and download to local machine
+    # expect ~ 3 hours each for simulating textHpo-labHpo, labHpo-labHpo and
+    # textHpo-textHpo
     # if you set mock to true, it will create empty p value files for Step 3;
     #  but note that -1 will be used for all p values in this case
-    pipeline_simulate_to_get_p_values(primary_only=config['primary_only'],
+    primary_only = config['analysis-prod']['regarding_diagnosis']['primary_diagnosis_only']
+    pipeline_simulate_to_get_p_values(primary_only=primary_only,
                                       diag_code='038', mock=False)
+    # continue to step 3 after you are done with Step 2
 
-    # Step 3: interpret the mutual information and synergy for one diagnosis
-    # list of diseases that you have calculate p values
+    # Step 3: interpret the mutual information and synergy of phenotypes for
+    # one diagnosis
+    # list of diseases that you have calculated p values. Using '038' as example
     diag_codes = ['038']
     primary_only = config['analysis-prod']['regarding_diagnosis']['primary_diagnosis_only']
 
@@ -1448,6 +1629,7 @@ def pipeline_regarding_diseases():
         remove_reflective_pairs = False
         remove_pairs_with_dependency = True
 
+        # return the csv directory and path for Step 4
         csv_dir, csv_textHpo_labHpo_path = pipeline_interpret_mf_regarding_diagnosis(
             p1_source, p2_source, primary_only, diag_code, hpo,
             remove_pairs_with_same_terms,
@@ -1476,7 +1658,7 @@ def pipeline_regarding_diseases():
         remove_reflective_pairs = True
         remove_pairs_with_dependency = True
 
-        _, csv_labHpo_labHpo_path = pipeline_interpret_mf_regarding_diagnosis(
+        _, csv_textHpo_textHpo_path = pipeline_interpret_mf_regarding_diagnosis(
             p1_source, p2_source, primary_only, diag_code, hpo,
             remove_pairs_with_same_terms,
             remove_reflective_pairs,
@@ -1485,16 +1667,92 @@ def pipeline_regarding_diseases():
             percentile_for_cytoscape=0.01)
 
 
+        # Step 4: render html files from csv
+        # you need to install the displaySynergy on your local machine
+        # see https://github.com/TheJacksonLaboratory/displaySynergy
+        path_to_displaySynergy_jar = 'displaySynergy-0.0.3.jar'
+        for csv_file in [csv_textHpo_labHpo_path, csv_labHpo_labHpo_path,
+                         csv_textHpo_textHpo_path]:
+            render_html_script = \
+                ' '.join(['java', '-jar', path_to_displaySynergy_jar,
+                          '-i', os.path.join(csv_dir, csv_file),
+                          '-o', csv_dir])
+            # run the following manually or use a subprocess
+            print("\nrun the following command in your terminal")
+            print(render_html_script)
+
+
+def pipeline_synergy_tree():
+    # This is a prototype only.
+    analysis_parameters = config['analysis-prod']['synergy_tree']
+    textHpo_occurrance_min = analysis_parameters['textHpo_occurrance_min']
+    labHpo_occurrance_min = analysis_parameters['labHpo_occurrance_min']
+    textHpo_threshold_min = analysis_parameters['textHpo_threshold_min']
+    textHpo_threshold_max = analysis_parameters['textHpo_threshold_max']
+    labHpo_threshold_min = analysis_parameters['labHpo_threshold_min']
+    labHpo_threshold_max = analysis_parameters['labHpo_threshold_max']
+    primary_diagnosis_only = labHpo_threshold_max
+
+    # use sepsis as an example
+    diagnosis = '038'
+
+    # Step 1: prepare MySql. Get the textHpo and labHpo of interest
+    initTables(debug=False)
+
+    rankHpoFromText(diagnosis, textHpo_occurrance_min)
+    rankHpoFromLab(diagnosis, labHpo_occurrance_min)
+
+    textHpoOfInterest = pd.read_sql_query(
+        "SELECT * FROM JAX_textHpoFrequencyRank WHERE N BETWEEN {} AND {}".format(
+            textHpo_threshold_min, textHpo_threshold_max), mydb).MAP_TO.values
+    labHpoOfInterest = pd.read_sql_query(
+        "SELECT * FROM JAX_labHpoFrequencyRank WHERE N BETWEEN {} AND {}".format(
+            labHpo_threshold_min, labHpo_threshold_max), mydb).MAP_TO.values
+
+    print(labHpoOfInterest)
+    print(textHpoOfInterest)
+
+    # TODO: have a clever algorithm to filter them
+    # manually trim phenotypes for now
+    textHpoOfInterest = ['HP:0001877', 'HP:0020058']
+    labHpoOfInterest = ['HP:0002202', 'HP:0011032', 'HP:0100750']
+    print("filtered phenotypes:")
+    print(labHpoOfInterest)
+    print(textHpoOfInterest)
+
+    cursor.execute("""drop table if exists Jax_multivariant_synergy_table""",
+                   mydb)
+
+    add_diag_columns(diagnosis, primary_diagnosis_only)
+    var_dict = add_phenotype_columns(labHpos=labHpoOfInterest, \
+                                     textHpos=textHpoOfInterest, \
+                                     labHpo_threshold_min=labHpo_occurrance_min, \
+                                     textHpo_threshold_min=textHpo_occurrance_min)
+    mf_dict, summary_dict = precompute_mf_dict(var_dict.keys())
+
+    syntree_038 = synergy_tree.SynergyTree(var_dict.keys(), var_dict, mf_dict)
+    syntree_038.synergy_tree().show()
+    print(var_dict)
+
+
+def pipeline_select_phenotypes_for_machine_learning():
+    # todo: port jupyter notebook 'mutual_info' to here
+    pass
+
+
 if __name__ == '__main__':
-    # run the pipeline to analyze the mutual information in regardless of any
+    print("choose which pipeline to run, and got to declarations for details")
+    # run this pipeline to analyze the mutual information in regardless of any
     #  diseases.
     # Only need to run once under production mode.
     # pipeline_regardless_of_disease()
 
     # run the pipeline to analyze the mutual information in regarding to a
     # disease
-    # pipeline_regarding_diseases()
-    pipeline_simulate_to_get_p_values(True, '493', False)
+    # pipeline_regarding_diseases(recompute_summary_statistics=False)
+
+    # run the pipeline to construct synergy tree
+    #pipeline_synergy_tree()
 
 
 

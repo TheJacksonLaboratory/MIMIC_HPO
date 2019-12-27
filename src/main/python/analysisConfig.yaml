@@ -37,7 +37,21 @@ analysis-prod:
     labHpo_threshold_min: 1000
     labHpo_threshold_max: 100000
 
+  # the parameters have the same function as stated above
   regardless_of_diseases:
+    textHpo_occurrance_min: 1
+    labHpo_occurrance_min: 3
+
+    textHpo_threshold_min: 500
+    textHpo_threshold_max: 100000
+
+    labHpo_threshold_min: 1000
+    labHpo_threshold_max: 100000
+
+  # the parameters have the same function as stated above
+  synergy_tree:
+    primary_diagnosis_only: True
+
     textHpo_occurrance_min: 1
     labHpo_occurrance_min: 3
 
@@ -83,6 +97,20 @@ analysis-test:
 
     labHpo_threshold_min: 75
     labHpo_threshold_max: 85
+
+  synergy_tree:
+    primary_diagnosis_only: True
+
+    textHpo_occurrance_min: 1
+    labHpo_occurrance_min: 3
+
+    textHpo_threshold_min: 7
+    textHpo_threshold_max: 7
+
+    labHpo_threshold_min: 8
+    labHpo_threshold_max: 8
+
+
 
 
 
