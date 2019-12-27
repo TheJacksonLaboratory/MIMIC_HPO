@@ -132,8 +132,7 @@ def estimate(args):
         randmizer.empirical_distribution = empirical_distribution
         p = randmizer.p_values()
 
-    p_path = os.path.join(out_path, 'p_value_{}.obj'.format(disease_of_interest))
-    with open(p_path, 'wb') as f:
+    with open(out_path, 'wb') as f:
         pickle.dump(p, f, protocol=2)
     return p
 

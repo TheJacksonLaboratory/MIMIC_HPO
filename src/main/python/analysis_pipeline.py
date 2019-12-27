@@ -1343,7 +1343,7 @@ def pipeline_simulate_to_get_p_values(primary_only, diag_code, mock=True):
                 "#!/bin/bash",
                 "#PBS -q batch",
                 "#PBS -l nodes=1:ppn=1",
-                "#PBS -l walltime=1:00:00"
+                "#PBS -l walltime=1:00:00",
                 "#PBS -l mem=64gb",
                 "#PBS -m a",
                 "module load Anaconda/4.2.0-c",
