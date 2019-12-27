@@ -1,0 +1,105 @@
+---
+title: "Predict Radiology findings from Labs"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+library(doSNOW)
+```
+
+
+```{r}
+## the function transforms counts in x into binary values, 1 if it is equal or above threshold, 0 otherwise (including missing values) 
+binarize_lab <- function(x, threshold) {
+  na_replaced <- if_else(is.na(x), 0, x)
+  binarized <- if_else(na_replaced >= threshold, 1, 0)
+  return (binarized)
+}
+```
+
+## Predict Pleural effusion from lab tests 
+```{r}
+df <- read.csv("/Users/zhangx/git/MIMIC_HPO/data/predict_textHpo_from_labHpo/Pleural_effusion.csv", header = TRUE)
+```
+
+```{r}
+df['Radiology_finding'] = if_else(df$HP.0002202 == 'HP:0002202', 'POS', 'NEG')
+df$HP.0002202 = NULL
+df <- df %>% mutate(HP.0004363 = if_else(is.na(HP.0004363), 0, HP.0004363)) %>%
+  mutate(HP.0011015 = if_else(is.na(HP.0011015), 0, HP.0011015)) %>%
+  mutate(HP.0020062 = if_else(is.na(HP.0020062), 0, HP.0020062)) %>%
+  mutate(HP.0500165 = if_else(is.na(HP.0500165), 0, HP.0500165))
+head(df, n = 10)
+```
+
+```{r}
+df_ml = df
+labHpo_call_threshold = 3
+df_ml <- df_ml %>% mutate(HP.0004363 = if_else(HP.0004363 >= labHpo_call_threshold, 1, 0),
+                          HP.0011015 = if_else(HP.0011015 >= labHpo_call_threshold, 1, 0),
+                          HP.0020062 = if_else(HP.0020062 >= labHpo_call_threshold, 1, 0),
+                          HP.0500165 = if_else(HP.0500165 >= labHpo_call_threshold, 1, 0))
+df_ml$Radiology_finding <- as.factor(df_ml$Radiology_finding)
+idx = createDataPartition(df_ml$Radiology_finding, p = 0.7, list = FALSE)
+training = df_ml[idx, ]
+testing = df_ml[-idx, ]
+head(training)
+```
+
+
+```{r}
+train.ctrl.rf = trainControl(method = "repeatedcv", number = 5, repeats = 3, savePredictions = T, search = "grid")
+tunegrid <- expand.grid(.mtry = 2)
+c1 <- makeCluster(3, type = "SOCK")
+registerDoSNOW(c1)
+rf <- train(training[, c(3,4,5,6)], training$Radiology_finding, method = "rf", trControl = train.ctrl.rf, tuneGrid = tunegrid)
+stopCluster(c1)
+rf
+prediction <- predict(rf, testing[,c(3,4,5,6)])
+confusionMatrix(prediction, testing$Radiology_finding)
+```
+
+## Predict Pneumonia from lab tests
+```{r}
+df <- read.csv("/Users/zhangx/git/MIMIC_HPO/data/predict_textHpo_from_labHpo/Pneumonia.csv", header = TRUE)
+head(df, n = 10)
+```
+```{r}
+df['Radiology_finding'] = if_else(df$HP.0002090 == 'HP:0002090', 'POS', 'NEG')
+df$HP.0002090 = NULL
+df <- df %>% mutate_at(vars(starts_with("HP")), binarize_lab, threshold = 3)
+head(df, n = 10)
+```
+
+down sample negative findings as there are twice more negative findings
+```{r}
+df_pos <- df %>% filter(Radiology_finding == 'POS')
+df_neg <- df %>% filter(Radiology_finding == 'NEG')
+df_neg_down_sampled <- df_neg[sample(1:nrow(df_neg), nrow(df_pos)),]
+```
+
+
+```{r}
+df_ml = df_pos %>% union(df_neg_down_sampled)
+df_ml$Radiology_finding <- as.factor(df_ml$Radiology_finding)
+idx = createDataPartition(df_ml$Radiology_finding, p = 0.7, list = FALSE)
+training = df_ml[idx, ]
+testing = df_ml[-idx, ]
+head(training)
+```
+
+
+```{r}
+train.ctrl.rf = trainControl(method = "repeatedcv", number = 5, repeats = 3, savePredictions = T, search = "grid")
+tunegrid <- expand.grid(.mtry = 2)
+c1 <- makeCluster(3, type = "SOCK")
+registerDoSNOW(c1)
+rf <- train(select(training, starts_with("HP")), training$Radiology_finding, method = "rf", trControl = train.ctrl.rf, tuneGrid = tunegrid)
+stopCluster(c1)
+rf
+prediction <- predict(rf, select(testing, starts_with("HP")))
+confusionMatrix(prediction, testing$Radiology_finding)
+```
+

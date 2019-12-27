@@ -20,6 +20,8 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
     MimicCommand labToHpo;
     @Autowired @Qualifier ("hpoInference")
     MimicCommand hpoInference;
+    @Autowired @Qualifier ("textToHpo")
+    MimicCommand textToHpo;
 
     /*Optional to include JCommander in Spring*/
 //    @Autowired JCommander jc;
@@ -33,6 +35,7 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
                 .addCommand("summarizeLab", summarizeLab)
                 .addCommand("lab2hpo", labToHpo)
                 .addCommand("hpoInference", hpoInference)
+                .addCommand("text2hpo", textToHpo)
                 .build();
 
         try {
@@ -68,6 +71,9 @@ public class MimicHpoCommandlineRunner implements CommandLineRunner {
                 break;
             case "hpoInference":
                 mimicCommand = hpoInference;
+                break;
+            case "text2hpo":
+                mimicCommand = textToHpo;
                 break;
             default:
                     System.err.println(String.format("[ERROR] command \"%s\" not recognized",command));
