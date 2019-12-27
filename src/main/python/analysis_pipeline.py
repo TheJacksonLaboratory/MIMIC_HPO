@@ -1182,13 +1182,13 @@ def create_dirs_if_necessary(primary_only, diag_code):
         os.mkdir(cytoscape_dir)
 
 
-def process_mf_df_regarding_diseases(p1_source, p2_source, primary_only,
-                                     diag_code, hpo,
-                                     remove_pairs_with_same_terms,
-                                     remove_reflective_pairs,
-                                     remove_pairs_with_dependency,
-                                     sort_by='synergy',
-                                     percentile_for_cytoscape=0.01):
+def pipeline_interpret_mf_regarding_diagnosis(p1_source, p2_source, primary_only,
+                                              diag_code, hpo,
+                                              remove_pairs_with_same_terms,
+                                              remove_reflective_pairs,
+                                              remove_pairs_with_dependency,
+                                              sort_by='synergy',
+                                              percentile_for_cytoscape=0.01):
     # calculate mutual information from summary statistics
     mutualInfoXYz = summary_statistics_to_mutualInfoXY_z(p1_source, p2_source,
                                                          primary_only,
@@ -1274,6 +1274,112 @@ def process_mf_df_regarding_diseases(p1_source, p2_source, primary_only,
     return csv_parent_dir, csv_file_path
 
 
+def pipeline_simulate_to_get_p_values(primary_only, diag_code, mock=True):
+    if primary_only:
+        diag_dir = 'primary_only'
+    else:
+        diag_dir = 'primary_and_secondary'
+
+    # define the follow three lists
+    # idea is to for each disease,
+    # use the summary statistics, build empirical distributions, and then
+    #  generate p values for observed numbers
+    fname_summary_statistics = [
+        'summaries_diagnosis_textHpo_labHpo.obj',
+        'summaries_diagnosis_labHpo_labHpo.obj',
+        'summaries_diagnosis_textHpo_textHpo.obj']
+    empirical_dist_dirs = ['{}_textHpo_labHpo'.format(diag_code),
+                           '{}_labHpo_labHpo'.format(diag_code),
+                           '{}_textHpo_textHpo'.format(diag_code)]
+    p_value_file_names = [
+        'p_value_textHpo_labHpo_{}_{}.obj'.format(diag_code, diag_dir),
+        'p_value_labHpo_labHpo_{}_{}.obj'.format(diag_code, diag_dir),
+        'p_value_textHpo_textHpo_{}_{}.obj'.format(diag_code, diag_dir)]
+    # then download p values files to the following directory
+    p_dir = os.path.join(base_dir, 'data', 'mf_regarding_diseases',
+                         diag_dir, diag_code)
+    if not os.path.exists(p_dir):
+        os.mkdir(p_dir)
+
+    if not mock:
+        # You need to run simulation codes on cluster, and then download the
+        # p value file. follow the printed instructions
+        for i in range(3):
+            # first, run simulation command on Helix to get empirical
+            # distributions of all metrics (e.g. mutual information, synergy
+            # etc) IF everything is random
+            simulation_script_header = '\n'.join([
+                "#!/bin/bash",
+                "#PBS -q batch",
+                "#PBS -l nodes=1:ppn=4",
+                "#PBS -l walltime=24:00:00",
+                "#PBS -l mem=32gb",
+                "#PBS -m a",
+                "module load Anaconda/4.2.0-c",
+                "source activate py3",
+                "base_dir=/projects/robinson-lab/mimic-III/mf_simulations"])
+
+            simulation_script_command = \
+                "python ${{base_dir}}/python/syn_simu_runner.py " \
+                "simulate -N 32 " \
+                "-i ${{base_dir}}/input_dir/{diag_dir}/{summary_statistics} " \
+                "-o ${{base_dir}}/simulation_output/{diag_dir}/{output_dir} " \
+                "-cpu 4 -job_id ${{PBS_ARRAYID}} -disease {diag_code}"\
+                    .format(diag_dir=diag_dir,
+                            summary_statistics=fname_summary_statistics[i],
+                            output_dir=empirical_dist_dirs[i],
+                            diag_code=diag_code)
+            complete_simulation_script = '\n'.join([simulation_script_header,
+                                      simulation_script_command])
+            print("\n\nsave the following to a file 'simulate.ssh', and run "
+                  "'qsub -t 1-500 simulate.ssh' \n")
+            print(complete_simulation_script)
+
+
+            # then look up the empirical distributions and find the p value
+            # of the observed value (likelihood that it could be more extreme
+            #  than the observed numbers), and serialize to corresponding files
+            estimate_p_header = '\n'.join([
+                "#!/bin/bash",
+                "#PBS -q batch",
+                "#PBS -l nodes=1:ppn=1",
+                "#PBS -l walltime=1:00:00"
+                "#PBS -l mem=64gb",
+                "#PBS -m a",
+                "module load Anaconda/4.2.0-c",
+                "source activate py3",
+                "base_dir=/projects/robinson-lab/mimic-III/mf_simulations"])
+            estimate_p_script_command = \
+                "python ${{base_dir}}/python/syn_simu_runner.py " \
+                "estimate " \
+                "-i " \
+                "${{base_dir}}/input_dir/{diag_dir}/{summary_statistics} " \
+                "-dist ${{base_dir}}/simulation_output/{diag_dir}/{dist_dir} " \
+                "-o ${{base_dir}}/p_values/{diag_dir}/{p_value_file} " \
+                "-disease {diag_code}".format(diag_dir=diag_dir,
+                                              summary_statistics=fname_summary_statistics[i],
+                                              dist_dir=empirical_dist_dirs[i],
+                                              diag_code=diag_code,
+                                              p_value_file=p_value_file_names[i])
+            complete_estimate_p_script = '\n'.join([estimate_p_header, estimate_p_script_command])
+            print("\nafter the previous job is done, save the following "
+                  "script as 'estimate.ssh' and submit with 'qsub "
+                  "estimate.ssh'")
+            print(complete_estimate_p_script)
+            print("\ndownload the generated p value files and save them to {} "
+                  "on local machine".format(p_dir))
+
+    else:
+        # fake p value file with an empty dictionary
+        p = dict()
+
+        for i in range(3):
+            with open(os.path.join(p_dir, p_value_file_names[i]), 'wb') as \
+                    p_value_file:
+                pickle.dump(p, p_value_file)
+
+
+
 ################################################################################
 # analysis pipeline. change according to desired behavior                      #
 ################################################################################
@@ -1308,15 +1414,26 @@ def pipeline_regardless_of_disease():
 
 
 def pipeline_regarding_diseases():
-    # Step 1: calculating summary statistics
+    # Step 1: calculating summary statistics for diseases of interest
+    # specified in the configuration file
+    # Comment out this section if the goal is to process summary statistics
+    # to generate nicely rendered csv and html files
     print("start calculating summary statistics...")
-    testmode = True  # set to false to run in production mode
+    testmode = False  # set to false to run in production mode
     pipeline_calculate_summary_statistics_for_mf_regarding_diseases(
         test_mode=testmode)
     print("done calculating summary statistics")
+    if testmode:
+        print("Step 2 and 3 not run for test mode. Pipeline completed. "
+              "Exiting.")
+        return 0
 
-    # Step 2: simulate p values on helix
-    # TODO: add script here
+    # Step 2: following the instructions printed by the function
+    # below to simulate p values on Helix and download to local machine
+    # if you set mock to true, it will create empty p value files for Step 3;
+    #  but note that -1 will be used for all p values in this case
+    pipeline_simulate_to_get_p_values(primary_only=config['primary_only'],
+                                      diag_code='038', mock=False)
 
     # Step 3: interpret the mutual information and synergy for one diagnosis
     # list of diseases that you have calculate p values
@@ -1331,7 +1448,7 @@ def pipeline_regarding_diseases():
         remove_reflective_pairs = False
         remove_pairs_with_dependency = True
 
-        csv_dir, csv_textHpo_labHpo_path = process_mf_df_regarding_diseases(
+        csv_dir, csv_textHpo_labHpo_path = pipeline_interpret_mf_regarding_diagnosis(
             p1_source, p2_source, primary_only, diag_code, hpo,
             remove_pairs_with_same_terms,
             remove_reflective_pairs,
@@ -1345,7 +1462,7 @@ def pipeline_regarding_diseases():
         remove_reflective_pairs = True
         remove_pairs_with_dependency = True
 
-        _, csv_labHpo_labHpo_path = process_mf_df_regarding_diseases(
+        _, csv_labHpo_labHpo_path = pipeline_interpret_mf_regarding_diagnosis(
             p1_source, p2_source, primary_only, diag_code, hpo,
             remove_pairs_with_same_terms,
             remove_reflective_pairs,
@@ -1359,7 +1476,7 @@ def pipeline_regarding_diseases():
         remove_reflective_pairs = True
         remove_pairs_with_dependency = True
 
-        _, csv_labHpo_labHpo_path = process_mf_df_regarding_diseases(
+        _, csv_labHpo_labHpo_path = pipeline_interpret_mf_regarding_diagnosis(
             p1_source, p2_source, primary_only, diag_code, hpo,
             remove_pairs_with_same_terms,
             remove_reflective_pairs,
@@ -1376,7 +1493,8 @@ if __name__ == '__main__':
 
     # run the pipeline to analyze the mutual information in regarding to a
     # disease
-    pipeline_regarding_diseases()
+    # pipeline_regarding_diseases()
+    pipeline_simulate_to_get_p_values(True, '493', False)
 
 
 
