@@ -31,6 +31,7 @@ def main():
     simulate_parser.add_argument('-v', '--verbose', help='print messages',
                                  dest='verbose', action='store_true',
                                  default=False)
+    # job_id is used as the seed for random number generator
     simulate_parser.add_argument('-job_id', help='job array id (PBS_ARRAYID)',
                         dest='job_id', type=int, default=None)
     simulate_parser.add_argument('-cpu', help='specify the number of available cpu',
@@ -75,6 +76,9 @@ def simulate(args):
         disease_synergy_map = pickle.load(in_file)
         logger.info('number of diseases to run simulations for {}'.format(
             len(disease_synergy_map)))
+
+    # make sure output directory exists, including intermediate directories
+    os.makedirs(dir, exist_ok=True)
 
     if job_id is None:
         job_suffix = ''
@@ -128,8 +132,7 @@ def estimate(args):
         randmizer.empirical_distribution = empirical_distribution
         p = randmizer.p_values()
 
-    p_path = os.path.join(out_path, 'p_value_{}.obj'.format(disease_of_interest))
-    with open(p_path, 'wb') as f:
+    with open(out_path, 'wb') as f:
         pickle.dump(p, f, protocol=2)
     return p
 
