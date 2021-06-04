@@ -35,7 +35,7 @@
     <loinc2hpo.version>1.1.6-SNAPSHOT</loinc2hpo.version>
       <uniphenominer.version>0.0.1</uniphenominer.version>
       <!--DO NOT CHANGE the http version-->
-      <httpclient.version>4.2</httpclient.version>
+      <httpclient.version>4.5.13</httpclient.version>
   </properties>
 
 
